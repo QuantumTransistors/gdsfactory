@@ -232,8 +232,7 @@ class Component(_GeometryHelper):
         self.function_name = ""
         self.module = ""
 
-        self.ports = {}
-
+        self.ports: dict[str, Port] = {}
         self.child = None
 
     def simplify(self, tolerance: float = 1e-3):
@@ -1631,16 +1630,21 @@ class Component(_GeometryHelper):
         port_marker_layer: Layer = (1, 10),
         show_labels: bool = False,
         show_ruler: bool = True,
+        figsize: tuple[int, int] = (8, 2),
+        dpi: int = 150,
     ):
         """Returns klayout image.
 
         If it fails to import klayout defaults to matplotlib.
 
         Args:
+
             show_ports: shows component with port markers and labels.
             port_marker_layer: for the ports.
             show_labels: shows labels.
             show_ruler: shows ruler.
+            figsize: (x, y) tuple with dimensions in inches (like in matplotlib)
+            dpi: dots per inch (like in matplotlib)
         """
 
         if show_ports:
@@ -1673,8 +1677,17 @@ class Component(_GeometryHelper):
 
             layout_view.set_config("text-visible", "true" if show_labels else "false")
             layout_view.set_config("grid-show-ruler", "true" if show_ruler else "false")
+            layout_view.set_config("background-color", "#ffffff")
 
-            pixel_buffer = layout_view.get_pixels_with_options(800, 600)
+            fig_width_in, fig_height_in = figsize
+
+            bbox = component.bbox
+            dbbbox = db.DBox(db.DPoint(*bbox[0]), db.DPoint(*bbox[1]))
+            aspect_ratio = dbbbox.width() / dbbbox.height()
+            fig_height_in = fig_width_in / aspect_ratio * 1.1
+            pixel_buffer = layout_view.get_pixels_with_options(
+                fig_width_in * dpi, fig_height_in * dpi
+            )
             png_data = pixel_buffer.to_png_data()
 
             # Convert PNG data to NumPy array and display with matplotlib
@@ -1682,7 +1695,6 @@ class Component(_GeometryHelper):
                 img_array = plt.imread(f)
 
             # Compute the figure dimensions based on the image size and desired DPI
-            dpi = 80
             fig_width = img_array.shape[1] / dpi
             fig_height = img_array.shape[0] / dpi
 

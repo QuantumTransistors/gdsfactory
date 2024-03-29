@@ -328,6 +328,10 @@ class Pdk(BaseModel):
             layers.update(self.layers)
             self.layers.update(layers)
 
+            layer_transitions = pdk.layer_transitions
+            layer_transitions.update(self.layer_transitions)
+            self.layer_transitions.update(layer_transitions)
+
             if not self.default_decorator:
                 self.default_decorator = pdk.default_decorator
 

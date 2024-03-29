@@ -69,7 +69,7 @@ class Info(BaseModel, extra="allow", validate_assignment=True):
                 continue  # prevent validation of schematic sub-dictionary
             if not isinstance(value, str | int | float | Sequence):
                 raise ValueError(
-                    "Values of the info dict only support int, float, string or tuple."
+                    "Values of the info dict only support int, float, string or tuple. "
                     f"{name}: {value}, {type(value)}"
                 )
 

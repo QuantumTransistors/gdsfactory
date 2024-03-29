@@ -187,11 +187,13 @@ def edge_coupler_array_with_loopback(
             component=ec,
             port_names=("o1", "o2"),
             length=extension_length,
-            extension=partial(
-                gf.c.straight, cross_section=cross_section, length=extension_length
-            )
-            if cross_section
-            else straight,
+            extension=(
+                partial(
+                    gf.c.straight, cross_section=cross_section, length=extension_length
+                )
+                if cross_section
+                else straight
+            ),
         )
 
     ec_ref = c << ec

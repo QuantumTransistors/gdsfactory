@@ -11,6 +11,10 @@ from gdsfactory.typings import Component, ComponentFactory
 def get_cells(modules, verbose: bool = False) -> dict[str, ComponentFactory]:
     """Returns PCells (component functions) from a module or list of modules.
 
+    Note: When we use partial, we typically don't have access to the name of the function
+    because it is bound to a variable. The only reason we can get the variable names is
+    because we are inspecting the module and collecting the variable names then.
+
     Args:
         modules: module or iterable of modules.
         verbose: prints in case any errors occur.
