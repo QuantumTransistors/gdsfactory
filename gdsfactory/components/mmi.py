@@ -3,7 +3,7 @@ from __future__ import annotations
 import gdsfactory as gf
 from gdsfactory.component import Component
 from gdsfactory.components.taper import taper as taper_function
-from gdsfactory.typings import Callable, ComponentFactory, CrossSectionSpec, Metadata
+from gdsfactory.typings import ComponentFactory, CrossSectionSpec
 
 
 @gf.cell
@@ -21,8 +21,6 @@ def mmi(
     cross_section: CrossSectionSpec = "xs_sc",
     input_positions: list[float] | None = None,
     output_positions: list[float] | None = None,
-    post_process: Callable | list[Callable] | None = None,
-    info: Metadata | None = None,
 ) -> Component:
     r"""mxn MultiMode Interferometer (MMI).
 
@@ -40,8 +38,6 @@ def mmi(
         cross_section: specification (CrossSection, string or dict).
         input_positions: optional positions of the inputs.
         output_positions: optional positions of the outputs.
-        post_process: function to post process the component.
-        info: additional information to add to the component.
 
     .. code::
 
@@ -91,6 +87,7 @@ def mmi(
             layer=layer,
         )
 
+    x.add_bbox(c)
     wg_spacing_input = gap_input_tapers + width_taper
     wg_spacing_output = gap_output_tapers + width_taper
 
@@ -134,10 +131,7 @@ def mmi(
         c.add_port(name=port.name, port=taper_ref.ports["o1"])
         c.absorb(taper_ref)
 
-    x.add_bbox(c)
     c.auto_rename_ports()
-    c.post_process(post_process)
-    c.info.update(info or {})
     return c
 
 
@@ -145,6 +139,7 @@ if __name__ == "__main__":
     # import gdsfactory as gf
     # c = gf.components.mmi1x2(cross_section="xs_rc")
     # c = mmi(inputs=2, outputs=4, gap_input_tapers=0.5, input_positions=[-1, 1])
-    c = mmi(cross_section="xs_rc")
+    # c = mmi(cross_section="xs_rc")
+    c = mmi(cross_section="xs_rc_bbox")
     # print(len(c.ports))
     c.show(show_ports=True)

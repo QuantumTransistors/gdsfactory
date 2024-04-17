@@ -26,6 +26,7 @@ You can also rename them with W,E,S,N prefix (west, east, south, north).
 
 Adapted from PHIDL https://github.com/amccaugh/phidl/ by Adam McCaughan
 """
+
 from __future__ import annotations
 
 import csv
@@ -202,12 +203,10 @@ class Port:
         return port
 
     @overload
-    def move_copy(self, x: np.ndarray | list[int | float, int | float]) -> Port:
-        ...
+    def move_copy(self, x: np.ndarray | list[int | float, int | float]) -> Port: ...
 
     @overload
-    def move_copy(self, x: int | float, y: int | float) -> Port:
-        ...
+    def move_copy(self, x: int | float, y: int | float) -> Port: ...
 
     def move_copy(self, x, y=None) -> Port:
         """Returns a copy of the port moved by a vector or given x and y."""
@@ -313,7 +312,7 @@ class Port:
             port_type=self.port_type,
             cross_section=self.cross_section,
             shear_angle=self.shear_angle,
-            info=self.info.model_copy(),
+            info=self.info.model_copy(deep=True),
         )
         return new_port
 

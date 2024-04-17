@@ -2,6 +2,7 @@
 
 Adapted from PHIDL https://github.com/amccaugh/phidl/ by Adam McCaughan
 """
+
 from __future__ import annotations
 
 import datetime
@@ -293,24 +294,6 @@ class Component(_GeometryHelper):
     @name.setter
     def name(self, name) -> None:
         self.rename(name)
-
-    def post_process(
-        self, post_process: Callable | list[Callable] | None = None
-    ) -> None:
-        """Post process the component in place.
-
-        Args:
-            post_process: optional list of functions to post process the component.
-        """
-        if post_process:
-            if callable(post_process):
-                post_process = [post_process]
-
-            for f in post_process:
-                if callable(f):
-                    f(self)
-                else:
-                    raise ValueError(f"{f} is not callable")
 
     def rename(self, name: str, cache: bool = True, max_name_length: int | None = None):
         from gdsfactory.cell import CACHE, remove_from_cache
@@ -2370,16 +2353,17 @@ class Component(_GeometryHelper):
         """Remove labels."""
         self._cell.remove(*self.labels)
 
-    def remap_layers(self, layermap, **kwargs) -> Component:
-        """Returns a copy of the component with remapped layers.
+    def remap_layers(self, layermap, new_copy: bool = True, **kwargs) -> Component:
+        """Returns a copy of the component with remapped layers, unless `new_copy` is set to False, in which case it modifies the current Component in place. It's important to be aware that modifying the current Component can have side effects on any references to it.
 
         Args:
             layermap: Dictionary of values in format {layer_from: layer_to}.
+            new_copy: If True, returns a new Component. If False, modifies the current Component in place, potentially affecting references to it.
         """
         if kwargs:
             warnings.warn("{kwargs.keys} is deprecated.", DeprecationWarning)
 
-        component = self
+        component = self.copy() if new_copy else self
         layermap = {_parse_layer(k): _parse_layer(v) for k, v in layermap.items()}
 
         cells = list(component.get_dependencies(True))
@@ -2935,7 +2919,7 @@ def flatten_offgrid_references_recursive(
         if keep_names:
             new_component.rename(component.name, cache=False)
         else:
-            new_component.rename(component.name + "_offgrid")
+            new_component.rename(f"{component.name}_offgrid")
 
         # make sure all modified cells have their references updated
         new_refs = new_component.references.copy()

@@ -19,16 +19,15 @@ settings:
       cross_section_x_top: null
       delta_length: 10.0
       extend_ports_straight_x: null
-      info: null
       length_x: 0.1
       length_y: 2.0
+      min_length: 0.01
       mirror_bot: false
       nbends: 2
       port_e0_combiner: o4
       port_e0_splitter: o4
       port_e1_combiner: o3
       port_e1_splitter: o3
-      post_process: null
       splitter:
         function: mmi2x2
       straight:
@@ -40,8 +39,8 @@ settings:
   component_name: null
   cross_section: xs_metal_routing
   get_input_labels_function: null
-  info: null
   layer_label: TEXT
+  min_length: null
   optical_routing_type: 1
   pad:
     function: pad
@@ -52,11 +51,10 @@ settings:
   pad_port_name: e1
   pad_spacing: pad_spacing
   port_names: null
-  post_process: null
   select_ports:
     function: select_ports
     module: gdsfactory.port
     settings:
       port_type: electrical
-  straight_separation: null
+  straight_separation: 20.0
   with_loopback: false

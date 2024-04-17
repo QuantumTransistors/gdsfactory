@@ -3,7 +3,7 @@ from __future__ import annotations
 import gdsfactory as gf
 from gdsfactory.component import Component
 from gdsfactory.components.taper import taper as taper_function
-from gdsfactory.typings import Callable, ComponentFactory, CrossSectionSpec, Metadata
+from gdsfactory.typings import ComponentFactory, CrossSectionSpec
 
 
 @gf.cell
@@ -16,8 +16,6 @@ def mmi2x2(
     gap_mmi: float = 0.25,
     taper: ComponentFactory = taper_function,
     cross_section: CrossSectionSpec = "xs_sc",
-    post_process: Callable | list[Callable] | None = None,
-    info: Metadata | None = None,
     **kwargs,
 ) -> Component:
     r"""Mmi 2x2.
@@ -34,8 +32,6 @@ def mmi2x2(
         with_bbox: add rectangular box in cross_section
             bbox_layers and bbox_offsets to avoid DRC sharp edges.
         cross_section: spec.
-        post_process: function to post process the component.
-        kwargs: cross_section settings.
 
 
     .. code::
@@ -85,6 +81,7 @@ def mmi2x2(
             ],
             layer=layer,
         )
+    x.add_bbox(c)
 
     a = gap_mmi / 2 + width_taper / 2
     ports = [
@@ -112,14 +109,12 @@ def mmi2x2(
         c.add_port(name=port.name, port=taper_ref.ports["o1"])
         c.absorb(taper_ref)
 
-    x.add_bbox(c)
-    c.post_process(post_process)
-    c.info.update(info or {})
     return c
 
 
 if __name__ == "__main__":
     # c = mmi2x2(gap_mmi=0.252, cross_section="xs_m1")
-    c = mmi2x2(gap_mmi=0.252, cross_section="xs_rc")
+    # c = mmi2x2(gap_mmi=0.252, cross_section="xs_rc")
+    c = mmi2x2(gap_mmi=0.252, cross_section="xs_rc_bbox")
     c.show(show_ports=True)
     c.pprint()

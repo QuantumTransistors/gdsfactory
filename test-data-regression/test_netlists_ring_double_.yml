@@ -15,16 +15,9 @@ instances:
       coupler_straight:
         function: coupler_straight
       cross_section:
-        add_pins_function_module: gdsfactory.add_pins
-        add_pins_function_name: null
-        auto_widen: false
-        auto_widen_minimum_length: 200.0
         bbox_layers: null
         bbox_offsets: null
         components_along_path: []
-        gap: 3.0
-        info: {}
-        min_length: 0.01
         radius: 10.0
         radius_min: 5.0
         sections:
@@ -43,14 +36,10 @@ instances:
           simplify: null
           width: 0.5
           width_function: null
-        taper_length: 10.0
-        width_wide: null
       cross_section_bend: null
       gap: 0.2
-      info: null
       length_extension: 3
       length_x: 0.01
-      post_process: null
       radius: 10.0
   coupler_ring_2:
     component: coupler_ring
@@ -63,16 +52,9 @@ instances:
       coupler_straight:
         function: coupler_straight
       cross_section:
-        add_pins_function_module: gdsfactory.add_pins
-        add_pins_function_name: null
-        auto_widen: false
-        auto_widen_minimum_length: 200.0
         bbox_layers: null
         bbox_offsets: null
         components_along_path: []
-        gap: 3.0
-        info: {}
-        min_length: 0.01
         radius: 10.0
         radius_min: 5.0
         sections:
@@ -91,14 +73,10 @@ instances:
           simplify: null
           width: 0.5
           width_function: null
-        taper_length: 10.0
-        width_wide: null
       cross_section_bend: null
       gap: 0.2
-      info: null
       length_extension: 3
       length_x: 0.01
-      post_process: null
       radius: 10.0
   straight_1:
     component: straight
@@ -111,16 +89,9 @@ instances:
       width: 0.5
     settings:
       cross_section:
-        add_pins_function_module: gdsfactory.add_pins
-        add_pins_function_name: null
-        auto_widen: false
-        auto_widen_minimum_length: 200.0
         bbox_layers: null
         bbox_offsets: null
         components_along_path: []
-        gap: 3.0
-        info: {}
-        min_length: 0.01
         radius: 10.0
         radius_min: 5.0
         sections:
@@ -139,12 +110,8 @@ instances:
           simplify: null
           width: 0.5
           width_function: null
-        taper_length: 10.0
-        width_wide: null
-      info: null
       length: 0.01
       npoints: 2
-      post_process: null
   straight_2:
     component: straight
     info:
@@ -156,16 +123,9 @@ instances:
       width: 0.5
     settings:
       cross_section:
-        add_pins_function_module: gdsfactory.add_pins
-        add_pins_function_name: null
-        auto_widen: false
-        auto_widen_minimum_length: 200.0
         bbox_layers: null
         bbox_offsets: null
         components_along_path: []
-        gap: 3.0
-        info: {}
-        min_length: 0.01
         radius: 10.0
         radius_min: 5.0
         sections:
@@ -184,12 +144,8 @@ instances:
           simplify: null
           width: 0.5
           width_function: null
-        taper_length: 10.0
-        width_wide: null
-      info: null
       length: 0.01
       npoints: 2
-      post_process: null
 name: ring_double
 placements:
   coupler_ring_1:

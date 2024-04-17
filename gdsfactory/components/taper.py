@@ -7,7 +7,7 @@ from gdsfactory.cell import cell
 from gdsfactory.component import Component
 from gdsfactory.port import Port
 from gdsfactory.snap import snap_to_grid
-from gdsfactory.typings import Callable, CrossSectionSpec, LayerSpec, Metadata
+from gdsfactory.typings import CrossSectionSpec, LayerSpec
 
 
 @cell
@@ -20,8 +20,6 @@ def taper(
     cross_section: CrossSectionSpec = "xs_sc",
     port_order_name: tuple | None = ("o1", "o2"),
     port_order_types: tuple | None = ("optical", "optical"),
-    post_process: Callable | list[Callable] | None = None,
-    info: Metadata | None = None,
     **kwargs,
 ) -> Component:
     """Linear taper, which tapers only the main cross section section.
@@ -40,8 +38,6 @@ def taper(
                 taper port, second name only if with_two_ports flags used.
         port_order_types(tuple): Ordered tuple of port types. First port is default \
                 taper port, second name only if with_two_ports flags used.
-        post_process: function to post process the component.
-        info: dictionary with metadata.
         kwargs: cross_section settings.
     """
     c = gf.Component()
@@ -78,19 +74,16 @@ def taper(
         xpts = [0, length, length, 0]
         for section in x.sections[1:]:
             layer = section.layer
+            y1 = section.width / 2
             if not section.offset:
-                y1 = section.width / 2
                 y2 = section.width / 2 + delta_width / 2
                 ypts = [y1, y2, -y2, -y1]
-                c.add_polygon((xpts, ypts), layer=layer)
             else:
-                y1 = section.width / 2
                 y2 = section.width / 2
                 y2 = section.width / 2 + delta_width / 2
                 ypts = [y1, y2, -y2, -y1]
                 ypts = [y - section.offset for y in ypts]
-                c.add_polygon((xpts, ypts), layer=layer)
-
+            c.add_polygon((xpts, ypts), layer=layer)
     c.add_port(
         name=port_order_name[0],
         center=(0, 0),
@@ -111,14 +104,10 @@ def taper(
             port_type=port_order_types[1],
         )
 
-    c.post_process(post_process)
-    c.info.update(info or {})
-
-    c.info["length"] = float(length)
+    c.info["length"] = length
     c.info["width1"] = float(width1)
     c.info["width2"] = float(width2)
-    if info:
-        c.info.update(info)
+    x.add_bbox(c)
     return c
 
 
@@ -132,8 +121,6 @@ def taper_strip_to_ridge(
     layer_wg: LayerSpec = "WG",
     layer_slab: LayerSpec = "SLAB90",
     cross_section: CrossSectionSpec = "xs_sc",
-    post_process: Callable | list[Callable] | None = None,
-    info: Metadata | None = None,
     **kwargs,
 ) -> Component:
     r"""Linear taper from strip to rib.
@@ -149,8 +136,6 @@ def taper_strip_to_ridge(
         layer_wg: for input waveguide.
         layer_slab: for output waveguide with slab.
         cross_section: for input waveguide.
-        post_process: function to post process the component.
-        info: additional information to add to the component.
         kwargs: cross_section settings.
 
     .. code::
@@ -201,8 +186,6 @@ def taper_strip_to_ridge(
     if length:
         xs.add_bbox(c)
 
-    c.post_process(post_process)
-    c.info.update(info or {})
     return c
 
 
@@ -215,8 +198,6 @@ def taper_strip_to_ridge_trenches(
     trench_layer: LayerSpec = "DEEP_ETCH",
     layer_wg: LayerSpec = "WG",
     trench_offset: float = 0.1,
-    post_process: Callable | list[Callable] | None = None,
-    info: Metadata | None = None,
 ) -> gf.Component:
     """Defines taper using trenches to define the etch.
 
@@ -228,8 +209,6 @@ def taper_strip_to_ridge_trenches(
         trench_layer: trench layer.
         layer_wg: waveguide layer.
         trench_offset: after waveguide in um.
-        post_process: function to post process the component.
-        info: additional information to add to the component.
     """
     c = gf.Component()
     y0 = width / 2 + trench_width - trench_offset
@@ -256,8 +235,6 @@ def taper_strip_to_ridge_trenches(
     c.add_port(
         name="o2", center=(length, 0), width=width, orientation=0, layer=layer_wg
     )
-    c.post_process(post_process)
-    c.info.update(info or {})
     return c
 
 
@@ -277,7 +254,7 @@ taper_sc_nc = partial(
 
 
 if __name__ == "__main__":
-    c = taper(cross_section="xs_rc", width2=1, length=1)
+    c = taper(cross_section="xs_rc_bbox", width2=1, length=1)
     # xs_pin_m1 = partial(
     #     gf.cross_section.strip_auto_widen,
     #     width=0.5,

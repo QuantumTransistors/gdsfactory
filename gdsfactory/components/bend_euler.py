@@ -10,7 +10,7 @@ from gdsfactory.components.straight import straight
 from gdsfactory.components.wire import wire_corner
 from gdsfactory.cross_section import strip
 from gdsfactory.path import euler
-from gdsfactory.typings import Callable, CrossSectionSpec, Metadata
+from gdsfactory.typings import CrossSectionSpec
 
 
 @gf.cell
@@ -22,8 +22,6 @@ def bend_euler(
     npoints: int | None = None,
     direction: str = "ccw",
     cross_section: CrossSectionSpec = "xs_sc",
-    post_process: Callable | list[Callable] | None = None,
-    info: Metadata | None = None,
     **kwargs,
 ) -> Component:
     """Euler bend with changing bend radius.
@@ -47,8 +45,6 @@ def bend_euler(
         npoints: Number of points used per 360 degrees.
         direction: cw (clock-wise) or ccw (counter clock-wise).
         cross_section: specification (CrossSection, string, CrossSectionFactory dict).
-        post_process: function to post process the component.
-        info: additional information to add to the component.
         kwargs: additional cross_section arguments.
 
     .. code::
@@ -88,8 +84,6 @@ def bend_euler(
     c.add_route_info(
         cross_section=x, length=c.info["length"], n_bend_90=abs(angle / 90.0)
     )
-    c.post_process(post_process)
-    c.info.update(info or {})
     return c
 
 
@@ -147,8 +141,6 @@ def bend_straight_bend(
     direction: str = "ccw",
     cross_section: CrossSectionSpec = strip,
     radius: float | None = None,
-    post_process: Callable | list[Callable] | None = None,
-    info: Metadata | None = None,
     **kwargs,
 ) -> Component:
     """Sbend made of 2 euler bends and straight section in between.
@@ -164,8 +156,6 @@ def bend_straight_bend(
         direction: cw (clock-wise) or ccw (counter clock-wise).
         cross_section: specification (CrossSection, string, CrossSectionFactory dict).
         radius: in um. Defaults to cross_section_radius.
-        post_process: optional function to post process the component.
-        info: additional information to add to the component.
         kwargs: additional cross_section arguments.
     """
     c = Component()
@@ -186,7 +176,8 @@ def bend_straight_bend(
     if direction == "cw":
         b2.mirror_y()
     s = c << straight(
-        length=straight_length, cross_section=cross_section, post_process=post_process
+        length=straight_length,
+        cross_section=cross_section,
     )
     s.connect("o1", b1.ports["o2"])
     b2.mirror()
@@ -195,8 +186,6 @@ def bend_straight_bend(
     c.add_port("o2", port=b2.ports["o2"])
     c.add_port("o1", port=b1.ports["o1"])
 
-    c.post_process(post_process)
-    c.info.update(info or {})
     return c
 
 

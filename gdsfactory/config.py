@@ -32,7 +32,7 @@ from rich.table import Table
 if TYPE_CHECKING:
     from loguru import Logger
 
-__version__ = "7.19.0"
+__version__ = "7.23.0"
 PathType = str | pathlib.Path
 
 home = pathlib.Path.home()
@@ -64,16 +64,17 @@ plugins = [
 pdks = [
     "aim",
     "amf",
-    "ct",
+    "ctpdk",
+    "cspdk",
     "gf180",
     "gf45",
+    "gvtt",
     "hhi",
     "imec",
     "sky130",
     "sph",
     "tj",
     "ubcpdk",
-    "gvtt",
 ]
 
 
@@ -289,12 +290,22 @@ class Settings(BaseSettings):
         self.logger.add(sys.stdout, format=tracing_formatter, filter=self.logfilter)
         self.logger.debug("LogLevel: {}", self.logfilter.level)
 
-        showwarning_ = warnings.showwarning
-
-        def showwarning(message, *args, **kwargs):
-            # depth 2 shows the same line as regular warnings.warn(..., stacklevel=1)
-            self.logger.opt(depth=2).warning(f"{args[0].__name__}: {message}")
-            showwarning_(message, *args, **kwargs)
+        def showwarning(message, category, filename, lineno, *args, **kwargs):
+            try:
+                inferred_stack_depth = next(
+                    i
+                    for (
+                        i,
+                        stack,
+                    ) in enumerate(reversed(traceback.extract_stack()))
+                    if stack.lineno == lineno and stack.filename == filename
+                )
+            except StopIteration:
+                # depth 2 would show the same line as warnings.warn with default stacklevel
+                inferred_stack_depth = 2
+            self.logger.opt(depth=inferred_stack_depth).warning(
+                f"{category.__name__}: {message}"
+            )
 
         warnings.showwarning = showwarning
 
@@ -311,6 +322,7 @@ class Paths:
     schema_netlist = repo_path / "tests" / "schemas" / "netlist.json"
     netlists = module_path / "samples" / "netlists"
     gdsdir = repo_path / "tests" / "gds"
+    thermal = repo_path / "tests" / "gds" / "thermal_phase_shifters.gds"
     gdslib = home / ".gdsfactory"
     modes = gdslib / "modes"
     sparameters = gdslib / "sp"

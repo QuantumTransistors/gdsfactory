@@ -36,7 +36,7 @@ from gdsfactory.typings import (
     Transition,
 )
 
-component_settings = ["function", "component", "settings"]
+component_settings = ["function", "module", "component", "settings"]
 cross_section_settings = ["function", "cross_section", "settings"]
 
 constants = {
@@ -72,7 +72,7 @@ def extract_args_from_docstring(docstring: str) -> dict[str, Any] | None:
     """
     args_dict = {}
 
-    docstring_lines = docstring.split("\n")
+    docstring_lines = docstring.split("\n") if docstring else []
     for line in docstring_lines:
         line = line.strip()
         if not line:
@@ -190,6 +190,7 @@ class Pdk(BaseModel):
         name: PDK name.
         cross_sections: dict of cross_sections factories.
         cells: dict of parametric cells that return Components.
+        models: dict of models names to functions.
         symbols: dict of symbols names to functions.
         default_symbol_factory:
         base_pdk: a pdk to copy from and extend.
@@ -225,6 +226,7 @@ class Pdk(BaseModel):
         default_factory=dict, exclude=True
     )
     cells: dict[str, ComponentFactory] = Field(default_factory=dict, exclude=True)
+    models: dict[str, Callable] = Field(default_factory=dict, exclude=True)
     symbols: dict[str, ComponentFactory] = Field(default_factory=dict)
     default_symbol_factory: Callable = Field(
         default=floorplan_with_block_letters, exclude=True
@@ -550,10 +552,11 @@ class Pdk(BaseModel):
             return xs(**kwargs) if callable(xs) else xs.copy(**kwargs)
         elif isinstance(cross_section, dict | DictConfig):
             xs_name = cross_section.get("cross_section", None)
-            settings = cross_section.get("settings", {})
-            if kwargs:
-                settings = settings | kwargs
-            xs = self.get_cross_section(xs_name, **settings)
+            if xs_name:
+                settings = cross_section.get("settings", {})
+                xs = self.get_cross_section(xs_name, **settings)
+            else:
+                xs = CrossSection(**cross_section)
             return xs
         else:
             raise ValueError(
@@ -619,7 +622,9 @@ class Pdk(BaseModel):
         blocks = {
             name: dict(
                 bbox=bbox_to_points(c.bbox),
-                doc=c.__doc__.split("\n")[0],
+                doc=c.__doc__.split("\n")[0]
+                if c and hasattr(c, "__doc__") and c.__doc__ is not None
+                else "",
                 settings=extract_args_from_docstring(c.__doc__),
                 parameters={
                     sname: {
@@ -783,6 +788,20 @@ def get_cross_section(
     return get_active_pdk().get_cross_section(cross_section, **kwargs)
 
 
+def get_cross_section_name(cross_section: CrossSectionSpec) -> str:
+    """Returns the name of a cross section. If not found in active PDK, raises a ValueError."""
+    pdk = get_active_pdk()
+
+    if isinstance(cross_section, str) and cross_section in pdk.cross_sections:
+        return cross_section
+    else:
+        cross_section = get_cross_section(cross_section)
+        for k, v in pdk.cross_sections.items():
+            if cross_section == v:
+                return k
+        raise ValueError(f"Invalid cross section: {cross_section}")
+
+
 def get_layer(layer: LayerSpec) -> Layer:
     return get_active_pdk().get_layer(layer)
 
@@ -868,7 +887,8 @@ on_yaml_cell_modified.add_handler(show)
 
 
 if __name__ == "__main__":
-    c = get_component("add_fiber_array")
+    xs = get_cross_section_name("xs_rc")
+    # c = get_component("add_fiber_array")
 
     # from gdsfactory.read.from_updk import from_updk
     # from gdsfactory.samples.pdk.fab_c import pdk

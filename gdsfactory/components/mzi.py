@@ -11,7 +11,7 @@ from gdsfactory.components.mmi1x2 import mmi1x2
 from gdsfactory.components.mmi2x2 import mmi2x2
 from gdsfactory.components.straight import straight as straight_function
 from gdsfactory.routing.get_route import get_route
-from gdsfactory.typings import Callable, ComponentSpec, CrossSectionSpec, Metadata
+from gdsfactory.typings import ComponentSpec, CrossSectionSpec
 
 
 @cell
@@ -39,8 +39,7 @@ def mzi(
     mirror_bot: bool = False,
     add_optical_ports_arms: bool = False,
     add_electrical_ports_bot: bool = True,
-    post_process: Callable | list[Callable] | None = None,
-    info: Metadata | None = None,
+    min_length: float = 0.01,
 ) -> Component:
     """Mzi.
 
@@ -69,8 +68,7 @@ def mzi(
         add_optical_ports_arms: add all other optical ports in the arms
             with top_ and bot_ prefix.
         add_electrical_ports_bot: add electrical ports to the bottom arm.
-        post_process: optional list of functions to post process the component.
-        info: additional information to add to the component.
+        min_length: minimum length for the straight_x_bot/top.
 
     .. code::
 
@@ -165,8 +163,7 @@ def mzi(
     sxt.connect("o1", b2.ports["o1"])
 
     cp2.mirror()
-    xs = gf.get_cross_section(cross_section)
-    cp2.xmin = sxt.ports["o2"].x + bend.info["radius"] * nbends + 2 * xs.min_length
+    cp2.xmin = sxt.ports["o2"].x + bend.info["radius"] * nbends + 2 * min_length
 
     route = get_route(
         sxt.ports["o2"],
@@ -214,8 +211,6 @@ def mzi(
         c.add_ports(sxt.get_ports_list(port_type="optical"), prefix="top_")
         c.add_ports(sxb.get_ports_list(port_type="optical"), prefix="bot_")
 
-    c.post_process(post_process)
-    c.info.update(info or {})
     return c
 
 

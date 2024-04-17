@@ -23,7 +23,7 @@ def test_get_bundle_electrical(
         bend=gf.components.wire_corner,
         width=10,
         # auto_widen=False,
-        auto_widen=True,
+        # auto_widen=True,
     )
     for i, route in enumerate(routes):
         c.add(route.references)
@@ -76,5 +76,5 @@ def test_get_bundle_electrical2(
 
 
 if __name__ == "__main__":
-    test_get_bundle_electrical(None, check=False)
-    # test_get_bundle_electrical2(None, check=False)
+    # test_get_bundle_electrical(None, check=False)
+    test_get_bundle_electrical2(None, check=False)
