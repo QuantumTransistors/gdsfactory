@@ -53,14 +53,8 @@ def taper(
     width1 = x1.width
     width2 = x2.width
 
-    width_max = max([width1, width2])
-    x = gf.get_cross_section(cross_section, width=width_max, **kwargs)
-    layer = x.layer
-
     if isinstance(port, gf.Port) and width1 is None:
         width1 = port.width
-
-    delta_width = width2 - width1
 
     length = float(snap_to_grid(length))
     y1 = width1 / 2
@@ -69,27 +63,27 @@ def taper(
     if length:
         xpts = [0, length, length, 0]
         ypts = [y1, y2, -y2, -y1]
-        c.add_polygon((xpts, ypts), layer=layer)
+        c.add_polygon((xpts, ypts), layer=x1.layer)
 
         xpts = [0, length, length, 0]
-        for section in x.sections[1:]:
-            layer = section.layer
-            y1 = section.width / 2
-            if not section.offset:
-                y2 = section.width / 2 + delta_width / 2
+        for section1, section2 in zip(x1.sections[1:], x2.sections[1:]):
+            layer = section1.layer
+            y1 = section1.width / 2
+            y2 = section2.width / 2
+            o1 = section1.offset
+            o2 = section2.offset
+            if not section1.offset:
                 ypts = [y1, y2, -y2, -y1]
             else:
-                y2 = section.width / 2
-                y2 = section.width / 2 + delta_width / 2
-                ypts = [y1, y2, -y2, -y1]
-                ypts = [y - section.offset for y in ypts]
+                ypts = [y1 + o1, y2 + o2, -y2 + o2, -y1 + o1]
             c.add_polygon((xpts, ypts), layer=layer)
+
     c.add_port(
         name=port_order_name[0],
         center=(0, 0),
         width=width1,
         orientation=180,
-        layer=x.layer,
+        layer=x1.layer,
         cross_section=x1,
         port_type=port_order_types[0],
     )
@@ -99,7 +93,7 @@ def taper(
             center=(length, 0),
             width=width2,
             orientation=0,
-            layer=x.layer,
+            layer=x2.layer,
             cross_section=x2,
             port_type=port_order_types[1],
         )
@@ -107,7 +101,7 @@ def taper(
     c.info["length"] = length
     c.info["width1"] = float(width1)
     c.info["width2"] = float(width2)
-    x.add_bbox(c)
+    x1.add_bbox(c)
     return c
 
 
