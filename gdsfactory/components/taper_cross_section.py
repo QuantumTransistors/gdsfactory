@@ -1,12 +1,35 @@
 from __future__ import annotations
 
 from functools import partial
+from math import inf
 
 import gdsfactory as gf
 from gdsfactory.cell import cell
 from gdsfactory.component import Component
 from gdsfactory.cross_section import strip_rib_tip
-from gdsfactory.typings import CrossSectionSpec
+from gdsfactory.typings import CrossSectionSpec, Floats, LayerSpecs
+
+
+def _combine_bbox(
+    bbox_layers1: LayerSpecs | None = None,
+    bbox_offsets1: Floats | None = None,
+    bbox_layers2: LayerSpecs | None = None,
+    bbox_offsets2: Floats | None = None,
+) -> tuple[LayerSpecs, Floats]:
+    bbox_layer_offset = dict()
+
+    if bbox_layers1 is not None:
+        for bbox_layer, bbox_offset in zip(bbox_layers1, bbox_offsets1):
+            bbox_layer_offset[bbox_layer] = max(
+                bbox_layer_offset.get(bbox_layer, -inf), bbox_offset
+            )
+    if bbox_layers2 is not None:
+        for bbox_layer, bbox_offset in zip(bbox_layers2, bbox_offsets2):
+            bbox_layer_offset[bbox_layer] = max(
+                bbox_layer_offset.get(bbox_layer, -inf), bbox_offset
+            )
+
+    return tuple(bbox_layer_offset.keys()), tuple(bbox_layer_offset.values())
 
 
 @cell
@@ -59,6 +82,10 @@ def taper_cross_section(
     c.absorb(ref)
 
     c.add_route_info(cross_section=x1, length=length, taper=True)
+    bbox_layers, bbox_offsets = _combine_bbox(
+        x1.bbox_layers, x1.bbox_offsets, x2.bbox_layers, x2.bbox_offsets
+    )
+    x1.copy(bbox_layers=bbox_layers, bbox_offsets=bbox_offsets).add_bbox(c)
     c.info["length"] = length
     return c
 
