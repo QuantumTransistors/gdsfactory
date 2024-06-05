@@ -4,33 +4,33 @@ import gdsfactory as gf
 from gdsfactory.component import Component
 from gdsfactory.components.bend_circular import bend_circular
 from gdsfactory.components.straight import straight
-from gdsfactory.cross_section import strip
 from gdsfactory.typings import ComponentSpec, CrossSectionSpec
 
 
 @gf.cell
 def ring_crow(
-    gaps: list[float] = [0.2] * 4,
-    radius: list[float] = [10.0] * 3,
-    input_straight_cross_section: CrossSectionSpec = strip,
-    output_straight_cross_section: CrossSectionSpec = strip,
-    bends: list[ComponentSpec] = [bend_circular] * 3,
-    ring_cross_sections: list[CrossSectionSpec] = [strip] * 3,
+    gaps: tuple[float, ...] = (0.2, 0.2, 0.2, 0.2),
+    radius: tuple[float, ...] = (10.0, 10.0, 10.0),
+    bends: tuple[ComponentSpec, ...] | None = None,
+    ring_cross_sections: tuple[CrossSectionSpec, ...] = ("xs_sc", "xs_sc", "xs_sc"),
     length_x: float = 0,
-    lengths_y: list[float] = [0] * 3,
+    lengths_y: tuple[float, ...] = (0, 0, 0),
+    input_straight_cross_section: CrossSectionSpec | None = None,
+    output_straight_cross_section: CrossSectionSpec | None = None,
+    cross_section: CrossSectionSpec = "xs_sc",
 ) -> Component:
     """Coupled ring resonators.
 
     Args:
-        gap: gap between for coupler.
-        radius: for the bend and coupler.
+        gaps: gap between rings.
+        radius: for each ring.
+        bends: bend spec for each ring.
+        ring_cross_sections: cross_section spec for each ring.
         length_x: ring coupler length.
-        length_y: vertical straight length.
-        coupler: ring coupler spec.
-        straight: straight spec.
-        bend: bend spec.
-        cross_section: cross_section spec.
-        kwargs: cross_section settings.
+        lengths_y: vertical straight length.
+        input_straight_cross_section: cross_section spec for input and output straight. Defaults to cross_section.
+        output_straight_cross_section: cross_section spec for input and output straight. Defaults to cross_section.
+        cross_section: cross_section spec for input and output straight.
 
     .. code::
 
@@ -59,6 +59,13 @@ def ring_crow(
           length_x
     """
     c = Component()
+
+    bends = bends or [bend_circular] * len(radius)
+    input_straight_cross_section = input_straight_cross_section or cross_section
+    output_straight_cross_section = output_straight_cross_section or cross_section
+
+    output_straight_cross_section = gf.get_cross_section(output_straight_cross_section)
+    input_straight_cross_section = gf.get_cross_section(input_straight_cross_section)
 
     # Input bus
     input_straight = gf.get_component(
@@ -128,7 +135,7 @@ def ring_crow(
         length=2 * radius[-1] + length_x,
         cross_section=output_straight_cross_section,
     )
-    output_straight_width = output_straight_cross_section().width
+    output_straight_width = output_straight_cross_section.width
     output_straight_waveguide = (
         c.add_ref(output_straight)
         .movey(cum_y_dist + gaps[-1] + output_straight_width / 2)

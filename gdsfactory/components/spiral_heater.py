@@ -8,7 +8,7 @@ from gdsfactory.components.bend_euler import bend_euler
 from gdsfactory.components.bend_s import bend_s, get_min_sbend_size
 from gdsfactory.components.straight import straight
 from gdsfactory.routing.get_route import get_route
-from gdsfactory.typings import ComponentFactory, CrossSectionSpec, Floats
+from gdsfactory.typings import ComponentFactory, ComponentSpec, CrossSectionSpec, Floats
 
 
 @gf.cell
@@ -329,6 +329,7 @@ def spiral_racetrack_heater_metal(
     bend_s_factory: ComponentFactory = bend_s,
     waveguide_cross_section: CrossSectionSpec = "xs_sc",
     heater_cross_section: CrossSectionSpec = "xs_heater_metal",
+    via_stack: ComponentSpec | None = "via_stack_heater_mtop",
 ) -> Component:
     """Returns spiral racetrack with a heater above.
 
@@ -344,6 +345,8 @@ def spiral_racetrack_heater_metal(
         bend_s_factory: factory to generate the s-bend segments.
         waveguide_cross_section: cross-section of the waveguides.
         heater_cross_section: cross-section of the heater.
+        via_stack: via stack to connect the heater to the metal layer.
+
     """
     c = gf.Component()
     xs = gf.get_cross_section(waveguide_cross_section)
@@ -362,15 +365,21 @@ def spiral_racetrack_heater_metal(
     heater_top = c << gf.components.straight(
         straight_length, cross_section=heater_cross_section
     )
-    heater_top.connect("e1", spiral.ports["o1"].copy().rotate(180)).movey(
-        spacing * num // 2
-    )
+    heater_top.connect(
+        "e1",
+        spiral.ports["o1"].copy().rotate(180),
+        allow_layer_mismatch=True,
+        allow_type_mismatch=True,
+    ).movey(spacing * num // 2)
     heater_bot = c << gf.components.straight(
         straight_length, cross_section=heater_cross_section
     )
-    heater_bot.connect("e1", spiral.ports["o2"].copy().rotate(180)).movey(
-        -spacing * num // 2
-    )
+    heater_bot.connect(
+        "e1",
+        spiral.ports["o2"].copy().rotate(180),
+        allow_layer_mismatch=True,
+        allow_type_mismatch=True,
+    ).movey(-spacing * num // 2)
 
     heater_bend = c << gf.components.bend_circular(
         angle=180,
@@ -383,8 +392,22 @@ def spiral_racetrack_heater_metal(
     heater_bot.connect("e1", heater_bend.ports["e2"])
 
     c.add_ports(spiral.ports)
-    c.add_port("e1", port=heater_bot["e2"])
-    c.add_port("e2", port=heater_top["e2"])
+
+    if via_stack:
+        via_stack = gf.get_component(via_stack)
+        via_stack_top = c << via_stack
+        via_stack_bot = c << via_stack
+        via_stack_top.connect("e3", heater_bot.ports["e2"], allow_layer_mismatch=True)
+        via_stack_bot.connect("e3", heater_top.ports["e2"], allow_layer_mismatch=True)
+
+        p1 = via_stack_top.ports
+        p2 = via_stack_bot.ports
+        c.add_ports(p1, prefix="top_")
+        c.add_ports(p2, prefix="bot_")
+
+    else:
+        c.add_port("e1", port=heater_bot["e2"])
+        c.add_port("e2", port=heater_top["e2"])
     return c
 
 
@@ -439,13 +462,19 @@ def spiral_racetrack_heater_doped(
     heater_top = c << heater_straight
     heater_bot = c << heater_straight
 
-    heater_bot.connect("e1", spiral.ports["o1"].copy().rotate(180)).movey(
-        -spacing * (num // 2 - 1)
-    )
+    heater_bot.connect(
+        "e1",
+        spiral.ports["o1"].copy().rotate(180),
+        allow_layer_mismatch=True,
+        allow_type_mismatch=True,
+    ).movey(-spacing * (num // 2 - 1))
 
-    heater_top.connect("e1", spiral.ports["o2"].copy().rotate(180)).movey(
-        spacing * (num // 2 - 1)
-    )
+    heater_top.connect(
+        "e1",
+        spiral.ports["o2"].copy().rotate(180),
+        allow_layer_mismatch=True,
+        allow_type_mismatch=True,
+    ).movey(spacing * (num // 2 - 1))
 
     c.add_ports(spiral.ports)
     c.add_ports(prefix="top_", ports=heater_top.ports)
@@ -465,6 +494,7 @@ def test_length_spiral_racetrack() -> None:
 if __name__ == "__main__":
     # c = spiral_racetrack(cross_section="xs_rc")
     # c = spiral_racetrack(num=4)
-    # c = spiral_racetrack_heater_doped(num=4)
-    c = spiral_racetrack_fixed_length()
+    c = spiral_racetrack_heater_doped(num=4)
+    # c = spiral_racetrack_fixed_length()
+    # c = spiral_racetrack_heater_metal()
     c.show(show_ports=True)

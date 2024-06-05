@@ -682,7 +682,7 @@ class ComponentReference(_GeometryHelper):
         return self
 
     def mirror_x(
-        self, port_name: str | None = None, x0: Coordinate | None = None
+        self, port_name: str | None = None, x0: float | None = None
     ) -> ComponentReference:
         """Perform horizontal mirror using x0 or port as axis (default, x0=0).
 
@@ -804,27 +804,6 @@ class ComponentReference(_GeometryHelper):
 
         self.move(origin=p, destination=destination)
 
-        if not np.isclose(p.width, destination.width) and not allow_width_mismatch:
-            message = f"Port width mismatch: {p.width} != {destination.width} in {self.parent.name} on layer {p.layer}"
-            if CONF.on_width_missmatch == "error":
-                raise ValueError(message)
-            elif CONF.on_width_missmatch == "warn":
-                warnings.warn(message)
-
-        if p.layer != destination.layer and not allow_layer_mismatch:
-            message = f"Port layer mismatch: {p.layer} != {destination.layer} in {self.parent.name}"
-            if CONF.on_layer_missmatch == "error":
-                raise ValueError(message)
-            elif CONF.on_layer_missmatch == "warn":
-                warnings.warn(message)
-
-        if p.port_type != destination.port_type and not allow_type_mismatch:
-            message = f"Port type mismatch: {p.port_type} != {destination.port_type} in {self.parent.name}"
-            if CONF.on_type_missmatch == "error":
-                raise ValueError(message)
-            elif CONF.on_type_missmatch == "warn":
-                warnings.warn(message)
-
         if destination.orientation is not None:
             self.move(
                 -overlap
@@ -835,6 +814,36 @@ class ComponentReference(_GeometryHelper):
                     ]
                 )
             )
+
+        if not np.isclose(p.width, destination.width) and not allow_width_mismatch:
+            message = (
+                f"Port width mismatch: {p.width} != {destination.width} in {self.parent.name} on layer {p.layer}. "
+                "Use allow_width_mismatch=True to ignore"
+            )
+            if CONF.on_width_missmatch == "error":
+                raise ValueError(message)
+            elif CONF.on_width_missmatch == "warn":
+                warnings.warn(message)
+
+        if p.layer != destination.layer and not allow_layer_mismatch:
+            message = (
+                f"Port layer mismatch: {p.layer} != {destination.layer} in {self.parent.name}. "
+                "Use allow_layer_mismatch=True to ignore"
+            )
+            if CONF.on_layer_missmatch == "error":
+                raise ValueError(message)
+            elif CONF.on_layer_missmatch == "warn":
+                warnings.warn(message)
+
+        if p.port_type != destination.port_type and not allow_type_mismatch:
+            message = (
+                f"Port type mismatch: {p.port_type} != {destination.port_type} in {self.parent.name}. "
+                "Use allow_type_mismatch=True to ignore"
+            )
+            if CONF.on_type_missmatch == "error":
+                raise ValueError(message)
+            elif CONF.on_type_missmatch == "warn":
+                warnings.warn(message)
 
         return self
 

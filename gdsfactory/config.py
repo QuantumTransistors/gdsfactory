@@ -32,7 +32,7 @@ from rich.table import Table
 if TYPE_CHECKING:
     from loguru import Logger
 
-__version__ = "7.23.0"
+__version__ = "7.25.2"
 PathType = str | pathlib.Path
 
 home = pathlib.Path.home()
@@ -262,13 +262,13 @@ class Settings(BaseSettings):
     allow_offgrid: bool = True
     bend_radius_error_type: ErrorType = ErrorType.WARNING
     on_width_missmatch: Literal["warn", "error", "ignore"] = Field(
-        default="warn", description="When connecting ports with different width."
+        default="error", description="When connecting ports with different width."
     )
     on_layer_missmatch: Literal["warn", "error", "ignore"] = Field(
-        default="ignore", description="When connecting ports with different layers."
+        default="error", description="When connecting ports with different layers."
     )
     on_type_missmatch: Literal["warn", "error", "ignore"] = Field(
-        default="ignore", description="When connecting ports with different types."
+        default="error", description="When connecting ports with different types."
     )
     default_show_suffix: Literal[".oas", ".gds"] = ".gds"
     raise_error_on_mutation: bool = True

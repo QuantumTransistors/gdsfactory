@@ -92,7 +92,9 @@ def straight_heater_meander(
         layer=x.layer,
         width=x.width,
     )
-    route = gf.routing.get_route(p1, p2, radius=radius)
+    route = gf.routing.get_route(
+        p1, p2, radius=radius, cross_section=x, straight=straight, bend=bend
+    )
 
     cross_section2 = cross_section
 
@@ -177,9 +179,6 @@ def straight_heater_meander(
     straight1.connect("o2", ports["o1_1"])
     straight2.connect("o1", ports[f"o2_{rows}"])
 
-    c.add_port("o1", port=straight1.ports["o1"])
-    c.add_port("o2", port=straight2.ports["o2"])
-
     if layer_heater:
         heater_cross_section = partial(
             gf.cross_section.cross_section, width=heater_width, layer=layer_heater
@@ -215,25 +214,38 @@ def straight_heater_meander(
                 f"No ports for port_orientation2 {port_orientation2} in {valid_orientations}"
             )
 
-        c.add_ports(p1, prefix="l_")
-        c.add_ports(p2, prefix="r_")
-
         if heater_taper_length:
             taper = gf.c.taper(
                 cross_section=heater_cross_section,
                 width1=via_stackw.ports["e1"].width,
                 width2=heater_width,
                 length=heater_taper_length,
+                port_types=("electrical", "electrical"),
             )
             taper1 = c << taper
             taper2 = c << taper
 
-            taper1.connect("o2", heater.ports["o1"])
-            taper2.connect("o2", heater.ports["o2"])
+            taper1.connect("o2", heater.ports["o1"], allow_type_mismatch=True)
+            taper2.connect("o2", heater.ports["o2"], allow_type_mismatch=True)
 
-            via_stack_west.connect("e3", taper1.ports["o1"])
-            via_stack_east.connect("e1", taper2.ports["o1"])
+            via_stack_west.connect(
+                "e3",
+                taper1.ports["o1"],
+                allow_layer_mismatch=True,
+                allow_type_mismatch=True,
+            )
+            via_stack_east.connect(
+                "e1",
+                taper2.ports["o1"],
+                allow_layer_mismatch=True,
+                allow_type_mismatch=True,
+            )
+        c = c.flatten()
+        c.add_ports(p1, prefix="l_")
+        c.add_ports(p2, prefix="r_")
 
+    c.add_port("o1", port=straight1.ports["o1"])
+    c.add_port("o2", port=straight2.ports["o2"])
     return c
 
 
@@ -250,5 +262,5 @@ if __name__ == "__main__":
     #     # port_orientation1=0
     #     # cross_section=partial(gf.cross_section.strip, width=0.8),
     # )
-    c = straight_heater_meander(straight="straight")
+    c = straight_heater_meander()
     c.show(show_ports=True)

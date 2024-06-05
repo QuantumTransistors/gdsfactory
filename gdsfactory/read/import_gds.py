@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 import gdstk
@@ -21,8 +23,9 @@ def import_gds(
     read_metadata: bool = False,
     read_metadata_json: bool = False,
     keep_name_short: bool = False,
-    unique_names: bool = True,
+    unique_names: bool = False,
     max_name_length: int = 250,
+    post_process: Callable[..., None] | None = None,
     **kwargs,
 ) -> Component:
     """Returns a Component from a GDS file.
@@ -39,6 +42,7 @@ def import_gds(
         unique_names: appends $ with a number to the name if the cell name is on CACHE. \
                 This avoids name collisions when importing multiple times the same cell name.
         max_name_length: maximum length of the name.
+        post_process: function to post process the component after importing.
         kwargs: extra to add to component.info (polarization, wavelength ...).
     """
     gdspath = Path(gdsdir) / Path(gdspath) if gdsdir else Path(gdspath)
@@ -69,9 +73,11 @@ def import_gds(
     for c in gdsii_lib.cells:
         D = Component()
         D._cell = c
+        name = f"{c.name}_{uuid.uuid4().hex[:8]}" if unique_names else c.name
+
         if not keep_name_short:
             max_name_length = 10000000000000
-        D.rename(c.name, cache=unique_names, max_name_length=max_name_length)
+        D.rename(name, cache=unique_names, max_name_length=max_name_length)
 
         cell_name_to_component[c.name] = D
         cell_to_component[c] = D
@@ -173,6 +179,8 @@ def import_gds(
     for k, v in kwargs.items():
         component.info[k] = v
     component.imported_gds = True
+    if post_process:
+        post_process(component)
     return component
 
 

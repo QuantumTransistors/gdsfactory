@@ -30,6 +30,7 @@ def from_updk(
     text_size: float = 2.0,
     activate_pdk: bool = False,
     read_xsections: bool = True,
+    use_port_layer: bool = False,
     prefix: str = "",
     suffix: str = "",
 ) -> str:
@@ -46,6 +47,7 @@ def from_updk(
         text_size: text size for labels.
         activate_pdk: if True, activate the pdk after writing the script.
         read_xsections: if True, read xsections from uPDK.
+        use_port_layer: if True, use the xsection layer for the port.
         prefix: optional prefix to add to the script.
         suffix: optional suffix to add to the script.
     """
@@ -162,8 +164,11 @@ def {block_name}({parameters_string})->gf.Component:
     c = gf.Component()
     p = c.add_polygon({points}, layer=layer_bbox)
     xc, yc = p.center
-    ysize = p.ysize
     name = f{cell_name!r}
+"""
+        if "ysize" in parameters_labels:
+            script += """
+    ysize = p.ysize
 """
         if layer_bbmetal and "bb_metal" in block:
             for bbmetal in block["bb_metal"].values():
@@ -172,15 +177,17 @@ def {block_name}({parameters_string})->gf.Component:
 
         script += parameters_labels
 
+        port_layer = "layer" if use_port_layer else "cross_section"
+
         for port_name, port in block.pins.items():
             port_type = (
                 "electrical" if port.xsection in electrical_xsections else "optical"
             )
 
-            if port.xsection != "None":
-                script += f"    c.add_port(name={port_name!r}, width={port.width}, cross_section={port.xsection!r}, center=({port.xya[0]}, {port.xya[1]}), orientation={port.xya[2]}, port_type={port_type!r})\n"
+            if port.xsection != "None" and not use_port_layer:
+                script += f"    c.add_port(name={port_name!r}, {port_layer}={port.xsection!r}, center=({port.xya[0]}, {port.xya[1]}), orientation={port.xya[2]}, port_type={port_type!r})\n"
             else:
-                script += f"    c.add_port(name={port_name!r}, width={port.width}, layer=(0, 0), center=({port.xya[0]}, {port.xya[1]}), orientation={port.xya[2]}, port_type={port_type!r})\n"
+                script += f"    c.add_port(name={port_name!r}, width={port.width}, layer={port.xsection!r}, center=({port.xya[0]}, {port.xya[1]}), orientation={port.xya[2]}, port_type={port_type!r})\n"
 
             if layer_pin_label:
                 d = OmegaConf.to_container(port)

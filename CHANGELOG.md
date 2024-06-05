@@ -1,11 +1,70 @@
 # [Changelog](https://keepachangelog.com/en/1.0.0/)
-## [Unreleased](https://github.com/gdsfactory/gdsfactory/compare/v7.22.3...main)
+## [Unreleased](https://github.com/gdsfactory/gdsfactory/compare/v7.25.1...main)
 
 <!-- towncrier release notes start -->
 
-## [7.23.0](https://github.com/gdsfactory/gdsfactory/releases/tag/v7.23.0) - 2024-04-10
+## [7.25.2](https://github.com/gdsfactory/gdsfactory/releases/tag/v7.25.2) - 2024-05-05
 
 No significant changes.
+
+
+## [7.25.1](https://github.com/gdsfactory/gdsfactory/releases/tag/v7.25.1) - 2024-04-30
+
+- Expose gc fiber port [#2709](https://github.com/gdsfactory/gdsfactory/pull/2709)
+- bugfix in manhattan routing if the first reference is a bend turn [#2704](https://github.com/gdsfactory/gdsfactory/pull/2704)
+- Add sidewall angle to Etch process step [#2703](https://github.com/gdsfactory/gdsfactory/pull/2703)
+- better docstrings [#2707](https://github.com/gdsfactory/gdsfactory/pull/2707)
+
+## [7.25.0](https://github.com/gdsfactory/gdsfactory/releases/tag/v7.25.0) - 2024-04-25
+
+- Forbid width mismatch [#2701](https://github.com/gdsfactory/gdsfactory/pull/2701)
+- Rename fiber ports [#2700](https://github.com/gdsfactory/gdsfactory/pull/2700)
+- fix stl export [#2702](https://github.com/gdsfactory/gdsfactory/pull/2702)
+- add via_stack to spiral_heater [#2698](https://github.com/gdsfactory/gdsfactory/pull/2698)
+
+## Dependency Updates
+
+- Bump sphinx from 7.2.6 to 7.3.7 [#2693](https://github.com/gdsfactory/gdsfactory/pull/2693)
+- Update kweb requirement from <1.3,>=1.1.9 to >=1.1.9,<2.1 [#2675](https://github.com/gdsfactory/gdsfactory/pull/2675)
+- Update trimesh requirement from <4.3,>=4 to >=4,<4.4 [#2674](https://github.com/gdsfactory/gdsfactory/pull/2674)
+- Update pydantic requirement from <2.7,>=2 to >=2,<2.8 [#2676](https://github.com/gdsfactory/gdsfactory/pull/2676)
+
+
+## [7.24.0](https://github.com/gdsfactory/gdsfactory/releases/tag/v7.24.0) - 2024-04-22
+
+- add component_with_function [#2683](https://github.com/gdsfactory/gdsfactory/pull/2683)
+- add via_yoffset to via_chain [#2678](https://github.com/gdsfactory/gdsfactory/pull/2678)
+- import_gds unique names appends uuid [#2696](https://github.com/gdsfactory/gdsfactory/pull/2696)
+- Fix cell annotation [#2692](https://github.com/gdsfactory/gdsfactory/pull/2692)
+- fix docs [#2681](https://github.com/gdsfactory/gdsfactory/pull/2681)
+- fix cross_section for ring_single_bend_coupler [#2668](https://github.com/gdsfactory/gdsfactory/pull/2668)
+- Pdk improvements [#2694](https://github.com/gdsfactory/gdsfactory/pull/2694)
+- Improve component with function [#2687](https://github.com/gdsfactory/gdsfactory/pull/2687)
+- Update type annotations in Component [#2686](https://github.com/gdsfactory/gdsfactory/pull/2686)
+- remove fill_rectangle from docs [#2685](https://github.com/gdsfactory/gdsfactory/pull/2685)
+- better import gds and ports [#2680](https://github.com/gdsfactory/gdsfactory/pull/2680)
+- improve updk [#2679](https://github.com/gdsfactory/gdsfactory/pull/2679)
+- add via_yoffset to via_chain [#2678](https://github.com/gdsfactory/gdsfactory/pull/2678)
+- c.info requires native types [#2691](https://github.com/gdsfactory/gdsfactory/pull/2691)
+- Fix type annotation for mirror_x [#2670](https://github.com/gdsfactory/gdsfactory/pull/2670)
+- Bump sphinx from 7.2.6 to 7.3.7 [#2693](https://github.com/gdsfactory/gdsfactory/pull/2693)
+- Update kweb requirement from <1.3,>=1.1.9 to >=1.1.9,<2.1 [#2675](https://github.com/gdsfactory/gdsfactory/pull/2675)
+- Update trimesh requirement from <4.3,>=4 to >=4,<4.4 [#2674](https://github.com/gdsfactory/gdsfactory/pull/2674)
+- Update pydantic requirement from <2.7,>=2 to >=2,<2.8 [#2676](https://github.com/gdsfactory/gdsfactory/pull/2676)
+
+
+## [7.23.0](https://github.com/gdsfactory/gdsfactory/releases/tag/v7.23.0) - 2024-04-10
+
+- add flag to remap layers [#2662](https://github.com/gdsfactory/gdsfactory/pull/2662)
+- fix text justify [#2666](https://github.com/gdsfactory/gdsfactory/pull/2666)
+- Fix cell decorator [#2665](https://github.com/gdsfactory/gdsfactory/pull/2665)
+- Bugfix: make `Component.remap_layers` actually return a copy [#2658](https://github.com/gdsfactory/gdsfactory/pull/2658)
+- allow custom import gds [#2661](https://github.com/gdsfactory/gdsfactory/pull/2661)
+- release-drafter workflow [#2659](https://github.com/gdsfactory/gdsfactory/pull/2659)
+- [minor bugs] Port.info: shallow copy -> deep copy [#2657](https://github.com/gdsfactory/gdsfactory/pull/2657)
+- Obey stacklevel in `warnings.warn` for loguru output [#2656](https://github.com/gdsfactory/gdsfactory/pull/2656)
+
+**Full Changelog**: https://github.com/gdsfactory/gdsfactory/compare/v7.22.3...v7.23.0
 
 
 ## [7.22.3](https://github.com/gdsfactory/gdsfactory/releases/tag/v7.22.3) - 2024-04-04

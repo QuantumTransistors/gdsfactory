@@ -18,8 +18,8 @@ def taper(
     port: Port | None = None,
     with_two_ports: bool = True,
     cross_section: CrossSectionSpec = "xs_sc",
-    port_order_name: tuple | None = ("o1", "o2"),
-    port_order_types: tuple | None = ("optical", "optical"),
+    port_names: tuple | None = ("o1", "o2"),
+    port_types: tuple | None = ("optical", "optical"),
     **kwargs,
 ) -> Component:
     """Linear taper, which tapers only the main cross section section.
@@ -34,9 +34,9 @@ def taper(
         with_two_ports: includes a second port.
             False for terminator and edge coupler fiber interface.
         cross_section: specification (CrossSection, string, CrossSectionFactory dict).
-        port_order_name(tuple): Ordered tuple of port names. First port is default \
+        port_names(tuple): Ordered tuple of port names. First port is default \
                 taper port, second name only if with_two_ports flags used.
-        port_order_types(tuple): Ordered tuple of port types. First port is default \
+        port_types(tuple): Ordered tuple of port types. First port is default \
                 taper port, second name only if with_two_ports flags used.
         kwargs: cross_section settings.
     """
@@ -79,23 +79,23 @@ def taper(
             c.add_polygon((xpts, ypts), layer=layer)
 
     c.add_port(
-        name=port_order_name[0],
+        name=port_names[0],
         center=(0, 0),
         width=width1,
         orientation=180,
         layer=x1.layer,
         cross_section=x1,
-        port_type=port_order_types[0],
+        port_type=port_types[0],
     )
     if with_two_ports:
         c.add_port(
-            name=port_order_name[1],
+            name=port_names[1],
             center=(length, 0),
             width=width2,
             orientation=0,
             layer=x2.layer,
             cross_section=x2,
-            port_type=port_order_types[1],
+            port_type=port_types[1],
         )
 
     c.info["length"] = length
@@ -115,6 +115,7 @@ def taper_strip_to_ridge(
     layer_wg: LayerSpec = "WG",
     layer_slab: LayerSpec = "SLAB90",
     cross_section: CrossSectionSpec = "xs_sc",
+    use_slab_port: bool = False,
     **kwargs,
 ) -> Component:
     r"""Linear taper from strip to rib.
@@ -130,6 +131,9 @@ def taper_strip_to_ridge(
         layer_wg: for input waveguide.
         layer_slab: for output waveguide with slab.
         cross_section: for input waveguide.
+        use_slab_port: if True, uses the port associated with the slab layer (layer_slab)
+            for the second output port of the component.
+            If False, the second port uses the same layer as the first port (layer_wg).
         kwargs: cross_section settings.
 
     .. code::
@@ -168,18 +172,21 @@ def taper_strip_to_ridge(
     )
 
     c = gf.Component()
-    for _t in [taper_wg, taper_slab]:
-        taper_ref = _t.ref()
-        c.add(taper_ref)
-        c.absorb(taper_ref)
+    taper_ref_wg = c << taper_wg
+    taper_ref_slab = c << taper_slab
 
     c.info["length"] = float(length)
-    c.add_port(name="o1", port=taper_wg.ports["o1"])
-    c.add_port(name="o2", port=taper_wg.ports["o2"])
+    c.add_port(name="o1", port=taper_ref_wg.ports["o1"])
+    if use_slab_port:
+        c.add_port(name="o2", port=taper_ref_slab.ports["o2"])
+    else:
+        c.add_port(name="o2", port=taper_ref_wg.ports["o2"])
 
     if length:
         xs.add_bbox(c)
 
+    c.absorb(taper_ref_wg)
+    c.absorb(taper_ref_slab)
     return c
 
 
@@ -244,11 +251,14 @@ taper_sc_nc = partial(
     width2=0.15,
     w_slab1=0.15,
     w_slab2=1.0,
+    use_slab_port=True,
 )
 
 
 if __name__ == "__main__":
-    c = taper(cross_section="xs_rc_bbox", width2=1, length=1)
+    c = taper_sc_nc()
+    c.pprint_ports()
+    # c = taper(cross_section="xs_rc_bbox", width2=1, length=1)
     # xs_pin_m1 = partial(
     #     gf.cross_section.strip_auto_widen,
     #     width=0.5,

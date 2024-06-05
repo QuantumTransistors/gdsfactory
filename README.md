@@ -1,8 +1,7 @@
-# gdsfactory 7.23.0
+# gdsfactory 7.25.2
 
 [![docs](https://github.com/gdsfactory/gdsfactory/actions/workflows/pages.yml/badge.svg)](https://gdsfactory.github.io/gdsfactory/)
 [![PyPI](https://img.shields.io/pypi/v/gdsfactory)](https://pypi.org/project/gdsfactory/)
-[![Conda Version](https://img.shields.io/conda/vn/conda-forge/gdsfactory.svg)](https://anaconda.org/conda-forge/gdsfactory)
 [![PyPI Python](https://img.shields.io/pypi/pyversions/gdsfactory.svg)](https://pypi.python.org/pypi/gdsfactory)
 [![Downloads](https://static.pepy.tech/badge/gdsfactory)](https://pepy.tech/project/gdsfactory)
 [![MIT](https://img.shields.io/github/license/gdsfactory/gdsfactory)](https://choosealicense.com/licenses/mit/)
@@ -27,7 +26,7 @@ Here, you can code your hardware design in Python or YAML, perform verification 
 
 We facilitate an end-to-end design flow for you to:
 
-- **Design (Layout, Simulation, Optimization)**: Utilize parametric cell functions in Python or YAML to define components. Test component settings, ports, and geometry to avoid unwanted regressions, and capture design intent in a schematic.
+- **Design (Layout, Simulation, Optimization)**: Define parametric cell functions in Python or YAML to generate components. Test component settings, ports, and geometry to avoid unwanted regressions, and capture design intent in a schematic.
 - **Verify (DRC, DFM, LVS)**: Run simulations directly from the layout using our simulation interfaces, removing the need to duplicate geometry drawings. Conduct component and circuit simulations, study design for manufacturing, and ensure complex layouts match their design intent through Layout Versus Schematic verification.
 - **Validate**: Define layout and test protocols simultaneously for automated chip analysis post-fabrication. This allows you to extract essential component parameters, and build data pipelines from raw data to structured data to monitor chip performance.
 

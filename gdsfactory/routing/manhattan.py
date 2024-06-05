@@ -974,7 +974,6 @@ def generate_manhattan_waypoints(
         min_straight_length: in um.
         bend: bend spec.
         cross_section: spec.
-        taper_length: in um.
         kwargs: cross_section settings.
 
     """
@@ -1048,7 +1047,7 @@ def route_manhattan(
         width_wide: wide width for taper.
         auto_widen: if True, automatically widen the waveguide.
         auto_widen_minimum_length: minimum length to automatically widen the waveguide.
-
+        taper_length: length of the taper.
     """
 
     try:
@@ -1096,7 +1095,7 @@ if __name__ == "__main__":
     route = route_manhattan(
         pb.ports["o2"],
         pt.ports["o1"],
-        cross_section="xs_sc_auto_widen",
+        cross_section="xs_sc",
     )
     c.add(route.references)
     c.show(show_ports=True)
