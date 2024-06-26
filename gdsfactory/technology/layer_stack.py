@@ -196,6 +196,20 @@ class LayerStack(BaseModel):
             if level.layer and level.layer_type == "etch"
         ]
 
+        # helper function for color printing
+        def print_colors(layer) -> str:
+            props = layer_views.get_from_tuple(layer)
+            txt = ""
+            if hasattr(props, "fill_color"):
+                fill_color = props.fill_color.as_hex(format="long").replace("#", "0x")
+                frame_color = props.frame_color.as_hex(format="long").replace("#", "0x")
+
+                if fill_color == frame_color:
+                    txt += f"color: {fill_color}"
+                else:
+                    txt += f"fill: {fill_color}, frame: {frame_color}"
+            return txt
+
         # remove all etched layers from the grown layers
         unetched_layers_dict = defaultdict(list)
         for layer_name in etch_layers:
@@ -229,7 +243,7 @@ class LayerStack(BaseModel):
             if level.layer_type == "etch":
                 into = level.into or []
                 for i, layer1 in enumerate(into):
-                    out += f"slab_{layer1}_{layer_name}_{i} = {layer1} &amp; {layer_name}\n"
+                    out += f"slab_{layer1}_{layer_name}_{i} = {layer1} & {layer_name}\n"
 
         out += "\n"
 
@@ -268,15 +282,7 @@ class LayerStack(BaseModel):
                     )
                     if layer_views:
                         txt += ", "
-                        props = layer_views.get_from_tuple(layer)
-                        if hasattr(props, "color"):
-                            if props.color.fill == props.color.frame:
-                                txt += f"color: {props.color.fill}"
-                            else:
-                                txt += (
-                                    f"fill: {props.color.fill}, "
-                                    f"frame: {props.color.frame}"
-                                )
+                        txt += print_colors(layer)
                     txt += ")"
                     out += f"{txt}\n"
 
@@ -292,15 +298,7 @@ class LayerStack(BaseModel):
                 )
                 if layer_views:
                     txt += ", "
-                    props = layer_views.get_from_tuple(layer)
-                    if hasattr(props, "color"):
-                        if props.color.fill == props.color.frame:
-                            txt += f"color: {props.color.fill}"
-                        else:
-                            txt += (
-                                f"fill: {props.color.fill}, "
-                                f"frame: {props.color.frame}"
-                            )
+                    txt += print_colors(layer)
 
                 txt += ")"
                 out += f"{txt}\n"
@@ -326,14 +324,7 @@ class LayerStack(BaseModel):
             )
             if layer_views:
                 txt += ", "
-                props = layer_views.get_from_tuple(layer)
-                if hasattr(props, "color"):
-                    if props.color.fill == props.color.frame:
-                        txt += f"color: {props.color.fill}"
-                    else:
-                        txt += (
-                            f"fill: {props.color.fill}, " f"frame: {props.color.frame}"
-                        )
+                txt += print_colors(layer)
             txt += ")"
             out += f"{txt}\n"
 
