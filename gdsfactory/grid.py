@@ -9,6 +9,7 @@ from functools import partial
 
 import numpy as np
 
+import gdsfactory
 from gdsfactory.cell import cell
 from gdsfactory.component import Component, valid_anchors
 from gdsfactory.component_layout import Group
@@ -244,7 +245,7 @@ def grid_with_text(
                         continue
                 else:
                     label = f"{text_prefix}{i}"
-                t = c << text(label)
+                t = c << gdsfactory.get_component(text, text=label)
                 if text_mirror:
                     t.mirror()
                 if text_rotation:
