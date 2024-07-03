@@ -272,9 +272,8 @@ def difftest(
         )
         try:
             overwrite(ref_file, run_file)
-        except OSError as exc:
+        except (OSError, EOFError) as exc:
             raise GeometryDifference(
-                "\n"
                 f"{filename!r} changed from reference {str(ref_file)!r}. "
                 "Run `pytest -s` to step and check differences in klayout GUI."
             ) from exc
