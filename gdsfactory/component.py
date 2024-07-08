@@ -1034,9 +1034,9 @@ class Component(_GeometryHelper):
                 parent=self,
                 layer=layer,
                 port_type=port_type or "optical",
-                cross_section=get_cross_section(cross_section)
-                if cross_section
-                else None,
+                cross_section=(
+                    get_cross_section(cross_section) if cross_section else None
+                ),
                 shear_angle=shear_angle,
             )
             p.parent = self
@@ -1266,7 +1266,7 @@ class Component(_GeometryHelper):
         self.copy_child_info(component)
         return ref
 
-    def copy_child_info(self, component: Component) -> None:
+    def copy_child_info(self, component: Component | ComponentReference) -> None:
         """Copy and settings info from child component into parent.
 
         Parent components can access child cells settings.
