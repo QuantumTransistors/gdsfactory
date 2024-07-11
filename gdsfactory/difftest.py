@@ -210,7 +210,7 @@ def diff(
 
 def difftest(
     component: gf.Component,
-    test_name: gf.Component | None = None,
+    test_name: str | None = None,
     dirpath: pathlib.Path = PATH.gds_ref,
     xor: bool = True,
     dirpath_run: pathlib.Path = PATH.gds_run,
