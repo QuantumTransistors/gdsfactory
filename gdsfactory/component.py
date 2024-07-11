@@ -1150,9 +1150,21 @@ class Component(_GeometryHelper):
 
         if layer is None:
             return None
-        elif isinstance(layer, set):
-            polygons = [self.add_polygon(points, ly) for ly in layer]
-            return polygons[0]
+        elif isinstance(layer, Iterable) and not isinstance(layer, str):
+            if (
+                isinstance(
+                    layer, tuple
+                )  # tuple is an iterable but can also be a layer (#, datatype)
+                and len(layer)
+                == 2  # it could also be a long tuple of layer # without datatype
+                and isinstance(
+                    layer[0], int
+                )  # if it is a tuple with two elements, then it's a valid layer
+            ):
+                pass  # this is a valid layer despite it being an iterable and not a string (avoid unintended recursion)
+            else:
+                polygons = [self.add_polygon(points, ly) for ly in layer]
+                return polygons[0]
 
         layer = get_layer(layer)
         if isinstance(points, gdstk.Polygon):
