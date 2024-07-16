@@ -92,7 +92,7 @@ def get_min_sbend_size(
     sizes = np.linspace(max_size, 0.1 * max_size, num_points)
 
     for i, s in enumerate(sizes):
-        sz = copy.deepcopy(size)
+        sz = list(copy.deepcopy(size))
         sz[ind] = s
         # print(sz)
         try:
