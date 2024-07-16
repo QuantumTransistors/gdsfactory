@@ -7,8 +7,8 @@ from gdsfactory.typings import Route
 
 
 def get_bundle_sbend(
-    ports1: Port,
-    ports2: Port,
+    ports1: list[Port],
+    ports2: list[Port],
     sort_ports: bool = True,
     enforce_port_ordering: bool = True,
     axis: str = "X",
