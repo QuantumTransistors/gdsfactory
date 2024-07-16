@@ -181,9 +181,9 @@ def get_route_electrical(
     end_straight_length: float | None = None,
     min_straight_length: float | None = None,
     gap: float = 10,
-    cross_section: None
-    | CrossSectionSpec
-    | MultiCrossSectionAngleSpec = "xs_metal_routing",
+    cross_section: (
+        None | CrossSectionSpec | MultiCrossSectionAngleSpec
+    ) = "xs_metal_routing",
     **kwargs,
 ) -> Route:
     """Returns a Manhattan Route between 2 ports with electrical routing.
@@ -207,12 +207,11 @@ def get_route_electrical(
             xs_list.append((xs, angles))
         cross_section = xs_list
     else:
-        xs = gf.get_cross_section(cross_section, **kwargs)
+        xs = cross_section = gf.get_cross_section(cross_section, **kwargs)
 
     min_straight_length = min_straight_length or xs.width + gap
     start_straight_length = start_straight_length or min_straight_length
     end_straight_length = end_straight_length or min_straight_length
-
     return get_route(
         input_port=input_port,
         output_port=output_port,
