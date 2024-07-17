@@ -50,6 +50,7 @@ from gdsfactory.snap import snap_to_grid
 
 if typing.TYPE_CHECKING:
     from gdsfactory.component import Component
+    from gdsfactory.typings import Coordinate
 
 Layer = tuple[int, int]
 Layers = tuple[Layer, ...]
@@ -316,12 +317,12 @@ class Port:
         )
         return new_port
 
-    def get_extended_center(self, length: float = 1.0) -> ndarray:
+    def get_extended_center(self, length: float = 1.0) -> Coordinate:
         """Returns the position of port center extended by length in its orientation."""
         angle = np.deg2rad(self.orientation)
         c = np.cos(angle)
         s = np.sin(angle)
-        return self.center + length * np.array([c, s])
+        return tuple(self.center + length * np.array([c, s]))
 
     def snap_to_grid(self, grid_factor: int = 1) -> None:
         """Snap port center to grid."""
