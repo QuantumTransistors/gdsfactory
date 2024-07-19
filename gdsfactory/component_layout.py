@@ -80,7 +80,7 @@ class Info(BaseModel, extra="allow", validate_assignment=True):
         return getattr(self, __key)
 
     def __setitem__(
-        self, __key: str, __val: str | int | float | Sequence | None
+        self, __key: str, __val: int | float | Sequence | str | dict | None
     ) -> None:
         if __val is not None:
             setattr(self, __key, __val)
