@@ -569,7 +569,7 @@ class Pdk(BaseModel):
         if isinstance(layer, tuple | list):
             if len(layer) != 2:
                 raise ValueError(f"{layer!r} needs two integer numbers.")
-            return layer
+            return tuple(layer)
         elif isinstance(layer, int):
             raise ValueError(
                 f"A gds layer requires a tuple of two integers and got only one integer `{layer}`"
