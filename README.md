@@ -1,4 +1,4 @@
-# gdsfactory 7.27.0
+# gdsfactory 7.27.1
 
 [![docs](https://github.com/gdsfactory/gdsfactory/actions/workflows/pages.yml/badge.svg)](https://gdsfactory.github.io/gdsfactory/)
 [![PyPI](https://img.shields.io/pypi/v/gdsfactory)](https://pypi.org/project/gdsfactory/)
@@ -10,6 +10,9 @@
 [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gdsfactory/gdsfactory-photonics-training)
 
 ![logo](https://i.imgur.com/cN1ZWq8.png)
+
+> **⚠️ Deprecation Warning:**  
+> This version of gdsfactory will only have bug fixes and minor updates. Please see [https://github.com/gdsfactory/gdsfactory](https://github.com/gdsfactory/gdsfactory) for the latest version.
 
 gdsfactory: An open source platform for end to-end chip design and validation.
 
