@@ -2628,7 +2628,7 @@ class Component(_GeometryHelper):
             "get_info is deprecated and will be removed in future versions of gdsfactory"
         )
         D_list = self.get_dependencies(recursive=True)
-        return [D.info.model_copy() for D in D_list]
+        return [D.info.model_copy(deep=True) for D in D_list]
 
     def get_netlist_yaml(self, **kwargs) -> dict[str, Any]:
         from gdsfactory.get_netlist import get_netlist_yaml
@@ -2757,7 +2757,7 @@ def copy(
     """
     c = Component()
     c.settings = D.settings.model_copy()
-    c.info = D.info.model_copy()
+    c.info = D.info.model_copy(deep=True)
     c.child = D.child
     c.function_name = D.function_name
     c.module = D.module
