@@ -621,7 +621,7 @@ class ComponentReference(_GeometryHelper):
         else:
             raise ValueError(
                 f"move(origin={origin})\n"
-                f"Invalid origin = {origin!r} needs to be"
+                f"Invalid origin = {origin!r} needs to be "
                 f"a coordinate, port or port name {list(self.ports.keys())}"
             )
 
