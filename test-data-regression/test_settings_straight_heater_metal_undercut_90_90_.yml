@@ -2,7 +2,7 @@ function: straight_heater_metal_undercut
 info:
   resistance: 0
 module: gdsfactory.components.straight_heater_metal
-name: straight_heater_metal_undercut_47ed7538
+name: straight_heater_metal_undercut_43b0dbef
 settings:
   cross_section: xs_sc
   cross_section_heater: xs_heater_metal
@@ -20,4 +20,4 @@ settings:
   straight:
     function: straight
   via_stack: via_stack_heater_mtop
-  with_undercut: false
+  with_undercut: true

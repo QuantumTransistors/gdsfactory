@@ -34,7 +34,7 @@ dependencies = [
   "types-PyYAML",
   "typer<1",
   "watchdog<5",
-  "kfactory[git,ipy]>=0.9.1,<0.13",
+  "kfactory[git,ipy]>=0.9.1,<0.14",
   "freetype-py",
   "mapbox_earcut",
   "networkx",
@@ -54,7 +54,7 @@ license = {file = "LICENSE"}
 name = "gdsfactory"
 readme = "README.md"
 requires-python = ">=3.10"
-version = "7.25.2"
+version = "7.27.0"
 
 [project.optional-dependencies]
 cad = [
@@ -124,7 +124,7 @@ norecursedirs = [
   "docs"
 ]
 python_files = ["gdsfactory/*.py", "tests/*.py"]
-testpaths = ["gdsfactory/", "tests"]
+testpaths = ["gdsfactory", "tests"]
 
 [tool.ruff]
 extend-exclude = ['docs/notebooks/']
@@ -211,7 +211,7 @@ message_template = "Bump to {new_version}"
 tag_template = "v{new_version}"
 
 [tool.tbump.version]
-current = "7.25.2"
+current = "7.27.0"
 regex = '''
   (?P<major>\d+)
   \.
