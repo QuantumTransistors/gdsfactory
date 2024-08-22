@@ -23,6 +23,7 @@ CACHE_IDS = set()
 
 INFO_VERSION = 2
 _F = TypeVar("_F", bound=Callable[..., Component])
+_Id = TypeVar("_Id")
 
 
 class CellReturnTypeError(ValueError):
@@ -57,8 +58,6 @@ def print_cache() -> None:
 
 @overload
 def cell(
-    func: None,
-    /,
     *,
     autoname: bool = True,
     copy_if_cached: bool = True,
@@ -75,12 +74,15 @@ def cell(
     get_child_name: bool = False,
     post_process: Sequence[Callable] | None = None,
     info: dict[str, int | float | str] | None = None,
-) -> partial: ...
+) -> Callable[[_Id], _Id]: ...
 
 
 @overload
+def cell(func: Callable, /, **kwargs) -> _F: ...
+
+
 def cell(
-    func: _F,
+    func: _F = None,
     /,
     *,
     autoname: bool = True,
@@ -98,29 +100,7 @@ def cell(
     get_child_name: bool = False,
     post_process: Sequence[Callable] | None = None,
     info: dict[str, int | float | str] | None = None,
-) -> _F: ...
-
-
-def cell(
-    func=None,
-    /,
-    *,
-    autoname: bool = True,
-    copy_if_cached: bool = True,
-    max_name_length: int | None = None,
-    include_module: bool = False,
-    with_hash: bool = False,
-    ports_offgrid: str | None = None,
-    ports_not_manhattan: str | None = None,
-    flatten: bool = False,
-    naming_style: str = "default",
-    default_decorator: Callable[[Component], Component] | None = None,
-    add_settings: bool = True,
-    validate: bool = False,
-    get_child_name: bool = False,
-    post_process: Sequence[Callable] | None = None,
-    info: dict[str, int | float | str] | None = None,
-) -> Callable[..., Component] | partial:
+) -> _F:
     """Parametrized Decorator for Component functions.
 
     Args:
