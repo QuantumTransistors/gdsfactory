@@ -1834,7 +1834,9 @@ class Component(_GeometryHelper):
         if show_subports:
             component = component.copy()
             for reference in component.references:
-                if isinstance(component, ComponentReference):
+                # Fixed a bug in which when showing sub-ports with .show(), no sub-ports were shown.
+                # was: if isinstance(component, ComponentReference):
+                if isinstance(reference, ComponentReference):
                     add_pins_triangle(
                         component=component,
                         reference=reference,
