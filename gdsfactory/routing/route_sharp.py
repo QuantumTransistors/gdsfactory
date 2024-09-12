@@ -27,7 +27,7 @@ def path_straight(port1: Port, port2: Port) -> Path:
         np.abs(np.mod(port1.orientation - port2.orientation, 360)), 3
     )
     e1, e2 = _get_rotated_basis(port1.orientation)
-    displacement = port2.dcenter - port1.dcenter
+    displacement = np.array(port2.dcenter) - np.array(port1.dcenter)
     xrel = np.round(
         np.dot(displacement, e1), 3
     )  # relative position of port 2, forward/backward
@@ -164,7 +164,7 @@ def path_manhattan(port1: Port, port2: Port, radius: float) -> Path:
     """
     radius += 0.1
     e1, e2 = _get_rotated_basis(port1.orientation)
-    displacement = port2.dcenter - port1.dcenter
+    displacement = np.array(port2.dcenter) - np.array(port1.dcenter)
     xrel = np.round(
         np.dot(displacement, e1), 3
     )  # port2 position, forward(+)/backward(-) from port 1
