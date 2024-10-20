@@ -507,7 +507,8 @@ def _get_bundle_waypoints(
     s = sign(y0 - y1)
     curr_end_straight = 0
 
-    end_straight_length = end_straight_length or 15.0
+    if end_straight_length is None:
+        end_straight_length = 15.0
 
     Le = end_straight_length
 
