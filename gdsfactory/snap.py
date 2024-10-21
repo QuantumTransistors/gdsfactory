@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import warnings
 from functools import partial
+from typing import TypeVar
 
 import numpy as np
 
-Value = float | tuple | np.ndarray
+Value = TypeVar("Value", float, tuple, np.ndarray)
 
 
 def is_on_grid(
