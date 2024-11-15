@@ -5,18 +5,19 @@ from gdsfactory.component import Component
 from gdsfactory.components.compass import compass
 from gdsfactory.geometry.boolean import boolean
 from gdsfactory.geometry.offset import offset
+from gdsfactory.typings import LayerSpec
 
 
-@gf.cell
+@gf.cell(validate=False)
 def outline(
     elements,
-    distance=1,
+    distance: float = 1,
     precision: float = 1e-3,
     join: str = "miter",
     tolerance: int = 2,
     join_first: bool = True,
     open_ports: bool | float = False,
-    layer=0,
+    layer: LayerSpec = (0, 0),
 ) -> Component:
     """Returns Component containing the outlined polygon(s).
 
@@ -74,9 +75,17 @@ def outline(
     if open_ports:
         trim_width = 0 if open_ports else open_ports * 2
         for port in port_list:
-            trim = compass(size=(distance + 6 * precision, port.width + trim_width))
+            trim = compass(
+                size=(distance + 6 * precision, port.width + trim_width), layer=layer
+            )
             trim_ref = Trim << trim
-            trim_ref.connect("e3", port, overlap=2 * precision)
+            trim_ref.connect(
+                "e3",
+                port,
+                overlap=2 * precision,
+                allow_type_mismatch=True,
+                allow_layer_mismatch=True,
+            )
 
     Outline = boolean(
         A=D_bloated,

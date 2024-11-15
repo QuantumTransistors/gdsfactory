@@ -67,7 +67,7 @@ def boolean(
             if isinstance(e, Component | ComponentReference):
                 polys.extend(e.get_polygons())
             elif isinstance(e, Polygon):
-                polys.extend(e.polygons)
+                polys.extend([e.points])
 
     gds_layer, gds_datatype = gf.pdk.get_layer(layer)
 

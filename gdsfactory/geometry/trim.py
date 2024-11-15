@@ -60,7 +60,7 @@ def trim(
         ports = []
         i = 0
         for port in component.get_ports():
-            if gdstk.inside([port.center], domain_shape):
+            if gdstk.inside([port.center], domain_shape)[0]:
                 new_name = f"{port.name[:1]}{i}"
                 ports.append(port.copy(new_name))
                 i += 1
