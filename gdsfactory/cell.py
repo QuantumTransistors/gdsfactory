@@ -256,6 +256,7 @@ def cell(
                     or len(named_args_string) > 28
                     or "'" in named_args_string
                     or "{" in named_args_string
+                    or named_args_string != clean_name(named_args_string)
                     else named_args_string
                 )
 
