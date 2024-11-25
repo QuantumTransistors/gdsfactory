@@ -53,7 +53,6 @@ from gdsfactory.port import (
     select_ports,
 )
 from gdsfactory.serialization import clean_dict
-from gdsfactory.snap import snap_to_grid2x
 
 if TYPE_CHECKING:
     from gdsfactory.technology import LayerStack, LayerViews
@@ -1205,7 +1204,7 @@ class Component(_GeometryHelper):
                 # Convert to form [[1,2],[3,4],[5,6]]
                 points = np.column_stack(points)
 
-            points = snap.snap_to_grid2x(points) if snap_to_grid else points
+            points = snap.snap_to_grid(points) if snap_to_grid else points
             layer, datatype = _parse_layer(layer)
             polygon = Polygon(points, (layer, datatype))
             if polygon.area() > 0:
@@ -1229,7 +1228,7 @@ class Component(_GeometryHelper):
         layer, datatype = _parse_layer(layer)
         points_exterior = points.exterior.coords
         if snap_to_grid:
-            points_exterior = snap_to_grid2x(points_exterior)
+            points_exterior = snap.snap_to_grid(points_exterior)
         polygon = Polygon(points_exterior, (layer, datatype))
 
         if points.interiors:
