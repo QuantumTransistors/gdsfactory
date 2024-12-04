@@ -24,6 +24,7 @@ def spiral_racetrack(
     n_bend_points: int = 99,
     with_inner_ports: bool = False,
     extra_90_deg_bend: bool = False,
+    allow_min_radius_violation: bool = True,
 ) -> Component:
     """Returns Racetrack-Spiral.
 
@@ -38,14 +39,15 @@ def spiral_racetrack(
         cross_section_s: cross-section of the s bend waveguide (optional).
         n_bend_points: optional bend points.
         with_inner_ports: if True, will build the spiral, but expose the inner ports where the S-bend would be.
-        extra_90_deg_bend: if True, we add an additional straight + 90 degree bent at the output, so the
-            output port is looking down.
+        extra_90_deg_bend: if True, we add an additional straight + 90 degree bent at the output, so the output port is looking down.
+        allow_min_radius_violation: if True, will allow the s-bend to have a smaller radius than the minimum radius.
     """
     c = gf.Component()
 
     if with_inner_ports:
-        bend_s = bend_s_factory(
-            (straight_length, -min_radius * 2 + 1 * spacings[0]),
+        bend_s = gf.get_component(
+            bend_s_factory,
+            size=(straight_length, -min_radius * 2 + 1 * spacings[0]),
             cross_section=cross_section_s or cross_section,
             npoints=n_bend_points,
         )
@@ -63,10 +65,12 @@ def spiral_racetrack(
             cross_section=bend_s.ports["o2"].cross_section,
         )
     else:
-        _bend_s = bend_s_factory(
-            (straight_length, -min_radius * 2 + 1 * spacings[0]),
+        _bend_s = gf.get_component(
+            bend_s_factory,
+            size=(straight_length, -min_radius * 2 + 1 * spacings[0]),
             cross_section=cross_section_s or cross_section,
             npoints=n_bend_points,
+            allow_min_radius_violation=allow_min_radius_violation,
         )
         bend_s = c << _bend_s
         c.info["length"] = _bend_s.info["length"]
@@ -74,7 +78,8 @@ def spiral_racetrack(
     ports = []
     for port in bend_s.ports:
         for i in range(len(spacings)):
-            _bend = bend_factory(
+            _bend = gf.get_component(
+                bend_factory,
                 angle=180,
                 radius=min_radius + np.sum(spacings[:i]),
                 p=0,
@@ -84,7 +89,9 @@ def spiral_racetrack(
             bend = c << _bend
             bend.connect("o1", port)
 
-            _straight = straight_factory(straight_length, cross_section=cross_section)
+            _straight = gf.get_component(
+                straight_factory, length=straight_length, cross_section=cross_section
+            )
             straight = c << _straight
             straight.connect("o1", bend.ports["o2"])
             port = straight.ports["o2"]
@@ -95,7 +102,8 @@ def spiral_racetrack(
     c.add_port("o1", port=ports[0])
 
     if extra_90_deg_bend:
-        bend = c << bend_factory(
+        bend = c << gf.get_component(
+            bend_factory,
             angle=90,
             radius=min_radius + np.sum(spacings),
             p=0,
@@ -210,6 +218,7 @@ def spiral_racetrack_fixed_length(
         straight=straight,
         bend=bend_factory,
         cross_section=xs_s_bend,
+        radius=min_radius,
     )
 
     c.add_port(
@@ -219,7 +228,7 @@ def spiral_racetrack_fixed_length(
         cross_section=gf.get_cross_section(xs_s_bend),
     )
     c.add_port("o1", port=in_wg.ports["o2"])
-    c.info["length"] += route.length * c.kcl.dbu
+    c.info["length"] += c.kcl.to_um(route.length)
     return c
 
 
@@ -302,8 +311,9 @@ def _req_straight_len(
             straight=straight,
             bend=bend_factory,
             cross_section=cross_section_s_bend,
+            radius=min_radius,
         )
-        c.info["length"] += route.length * c.kcl.dbu
+        c.info["length"] += c.kcl.to_um(route.length)
         lens.append(c.info["length"])
 
     # get the required spacing to achieve the required length (interpolate)
@@ -503,7 +513,8 @@ if __name__ == "__main__":
 
     # c = spiral_racetrack(cross_section="rib")
     # c = spiral_racetrack()
-    c = spiral_racetrack()
+    # c = spiral_racetrack()
+    c = spiral_racetrack_fixed_length()
     # c = spiral_racetrack_heater_metal()
     # c = spiral_racetrack_heater_doped()
     c.show()

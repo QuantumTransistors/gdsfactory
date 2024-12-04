@@ -11,14 +11,14 @@ import gdsfactory as gf
 from gdsfactory.component import Component
 from gdsfactory.port import Port, read_port_markers, sort_ports_clockwise
 from gdsfactory.snap import snap_to_grid
-from gdsfactory.typings import LayerSpec
+from gdsfactory.typings import AngleInDegrees, LayerSpec
 
 
 def add_ports_from_markers_square(
     component: Component,
     pin_layer: LayerSpec = "DEVREC",
     port_layer: LayerSpec | None = None,
-    orientation: int | None = 90,
+    orientation: AngleInDegrees | None = 90,
     min_pin_area_um2: float = 0,
     max_pin_area_um2: float | None = 150 * 150,
     pin_extra_width: float = 0.0,
@@ -44,7 +44,7 @@ def add_ports_from_markers_square(
     port_name_prefix = port_name_prefix or port_name_prefix_default
     port_markers = read_port_markers(component, (pin_layer,))
     port_names = port_names or [
-        f"{port_name_prefix}{i+1}" for i in range(len(port_markers.polygons))
+        f"{port_name_prefix}{i + 1}" for i in range(len(port_markers.polygons))
     ]
     layer = port_layer or pin_layer
 
@@ -54,13 +54,18 @@ def add_ports_from_markers_square(
 
         dy = snap_to_grid(ymax - ymin)
         dx = snap_to_grid(xmax - xmin)
+        width = dx - pin_extra_width
+
+        # Snap to the nearest 2 nm (0.002 µm)
+        width = np.round((width - pin_extra_width) / 0.002) * 0.002
+
         if dx == dy and max_pin_area_um2 > dx * dy > min_pin_area_um2:
             x = x
             y = y
             component.add_port(
                 port_name,
                 center=(x, y),
-                width=dx - pin_extra_width,
+                width=width,
                 orientation=orientation,
                 layer=layer,
             )
@@ -170,7 +175,7 @@ def add_ports_from_markers_center(
     ports = []
 
     for i, p in enumerate(port_markers):
-        port_name = f"{port_name_prefix}{i+1}" if port_name_prefix else str(i)
+        port_name = f"{port_name_prefix}{i + 1}" if port_name_prefix else str(i)
         bbox = p.bbox()
         pxmin, pymin, pxmax, pymax = bbox.left, bbox.bottom, bbox.right, bbox.top
 
@@ -212,13 +217,12 @@ def add_ports_from_markers_center(
                 orientation = 180
                 x = pxmin if inside else x
         elif dy > dx if ports_on_short_side else dx > dy:
+            width = dx
             if y > yc:  # north
                 orientation = 90
-                width = dx
                 y = pymax if inside else y
-            elif y <= yc:  # south
+            else:
                 orientation = 270
-                width = dx
                 y = pymin if inside else y
 
         elif pxmax > dxmax - tol:  # east
@@ -252,6 +256,9 @@ def add_ports_from_markers_center(
             raise ValueError(f"Unable to detect port at ({dx}, {dy})")
 
         width = width - pin_extra_width
+
+        # Snap to the nearest 2 nm (0.002 µm)
+        width = np.round((width - pin_extra_width) / 0.002) * 0.002
 
         if (x, y) not in port_locations:
             port_locations.append((x, y))
@@ -379,7 +386,7 @@ def add_ports_from_boxes(
 
     port_markers = component.get_boxes(layer=pin_layer)
     for i, p in enumerate(port_markers):
-        port_name = f"{port_name_prefix}{i+1}" if port_name_prefix else str(i)
+        port_name = f"{port_name_prefix}{i + 1}" if port_name_prefix else str(i)
         bbox = p.bbox()
         pxmin, pymin, pxmax, pymax = bbox.left, bbox.bottom, bbox.right, bbox.top
 
@@ -453,7 +460,8 @@ def add_ports_from_boxes(
                 f"Unable to detect port at ({dx=}, {dy=}, {x=}, {y=}, {xc=}, {yc=}"
             )
 
-        width = np.round(width - pin_extra_width, 3)
+        # Snap to the nearest 2 nm (0.002 µm)
+        width = np.round((width - pin_extra_width) / 0.002) * 0.002
 
         if (x, y) not in port_locations:
             port_locations.append((x, y))
@@ -498,7 +506,7 @@ def add_ports_from_labels(
     get_name_from_label: bool = False,
     layer_label: LayerSpec | None = None,
     fail_on_duplicates: bool = False,
-    port_orientation: float | None = None,
+    port_orientation: AngleInDegrees | None = None,
     guess_port_orientation: bool = True,
     port_filter_prefix: str | None = None,
 ) -> Component:
@@ -540,7 +548,7 @@ def add_ports_from_labels(
         if get_name_from_label:
             port_name = label.string
         else:
-            port_name = f"{port_name_prefix}{i+1}" if port_name_prefix else i
+            port_name = f"{port_name_prefix}{i + 1}" if port_name_prefix else i
 
         orientation = port_orientation
 
@@ -619,7 +627,7 @@ def add_ports_from_siepic_pins(
             orientation = 3
 
         c.create_port(
-            name=f"{port_prefix}{i+1}",
+            name=f"{port_prefix}{i + 1}",
             dwidth=round(path.width / c.kcl.dbu) * c.kcl.dbu,
             dcplx_trans=gf.kdb.DCplxTrans(
                 1, orientation, False, path.bbox().center().to_v()

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import numpy as np
 
-from gdsfactory import cell
+import gdsfactory as gf
 from gdsfactory.component import Component
 from gdsfactory.typings import LayerSpec
 
 
-@cell
+@gf.cell
 def optimal_90deg(
     width: float = 100,
     num_pts: int = 15,
@@ -25,7 +25,7 @@ def optimal_90deg(
     Notes:
         Optimal structure from https://doi.org/10.1103/PhysRevB.84.174510
         Clem, J., & Berggren, K. (2011). Geometry-dependent critical currents in
-        superconducting nanocircuits. Physical Review B, 84(17), 1–27.
+        superconducting nanocircuits. Physical Review B, 84(17), 1-27.
     """
     D = Component()
 

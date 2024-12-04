@@ -3,22 +3,21 @@ from __future__ import annotations
 import numpy as np
 
 import gdsfactory as gf
-from gdsfactory import cell
 from gdsfactory.component import Component
 from gdsfactory.components.ge_detector_straight_si_contacts import (
     ge_detector_straight_si_contacts,
 )
 from gdsfactory.components.mmi_90degree_hybrid import mmi_90degree_hybrid
-from gdsfactory.typings import ComponentSpec, CrossSectionSpec
+from gdsfactory.typings import ComponentSpec, CrossSectionSpec, Spacing
 
 
-@cell
+@gf.cell
 def coh_rx_single_pol(
     bend: ComponentSpec = "bend_euler",
     cross_section: CrossSectionSpec = "strip",
     hybrid_90deg: ComponentSpec = mmi_90degree_hybrid,
     detector: ComponentSpec = ge_detector_straight_si_contacts,
-    det_spacing: tuple[float, float] = (60.0, 50.0),
+    det_spacing: Spacing = (60.0, 50.0),
     in_wg_length: float = 20.0,
     lo_input_coupler: ComponentSpec | None = None,
     signal_input_coupler: ComponentSpec | None = None,
@@ -39,6 +38,7 @@ def coh_rx_single_pol(
         signal_input_coupler: Optional coupler for the signal.
         cross_section_metal_top: cross_section for the top metal layer.
         cross_section_metal: cross_section for the metal layer.
+        cross_section: cross_section for the waveguides.
 
     .. code::
 
@@ -133,7 +133,7 @@ def coh_rx_single_pol(
         det_ports.append(det.ports["o1"])
         ports_hybrid.append(hybrid.ports[port_name])
 
-    gf.routing.route_bundle(c, ports_hybrid, det_ports)
+    gf.routing.route_bundle(c, ports_hybrid, det_ports, cross_section=cross_section)
 
     # --- Draw metal connections ----
     gf.routing.route_single_electrical(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 import gdsfactory as gf
@@ -31,7 +33,7 @@ def grating_coupler_elliptical_arbitrary(
     spiked: bool = True,
     bias_gap: float = 0,
     cross_section: CrossSectionSpec = "strip",
-    **kwargs,
+    **kwargs: Any,
 ) -> Component:
     r"""Grating coupler with parametrization based on Lumerical FDTD simulation.
 
@@ -175,7 +177,7 @@ def grating_coupler_elliptical_uniform(
     n_periods: int = 20,
     period: float = 0.75,
     fill_factor: float = 0.5,
-    **kwargs,
+    **kwargs: Any,
 ) -> Component:
     r"""Grating coupler with parametrization based on Lumerical FDTD simulation.
 

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import numpy as np
 
-from gdsfactory import cell
+import gdsfactory as gf
 from gdsfactory.component import Component
 from gdsfactory.snap import snap_to_grid
 from gdsfactory.typings import LayerSpec
 
 
-@cell
+@gf.cell
 def optimal_hairpin(
     width: float = 0.2,
     pitch: float = 0.6,
@@ -36,7 +36,7 @@ def optimal_hairpin(
 
         Optimal structure from https://doi.org/10.1103/PhysRevB.84.174510
         Clem, J., & Berggren, K. (2011). Geometry-dependent critical currents in
-        superconducting nanocircuits. Physical Review B, 84(17), 1–27.
+        superconducting nanocircuits. Physical Review B, 84(17), 1-27.
     """
     # ==========================================================================
     #  Create the basic geometry

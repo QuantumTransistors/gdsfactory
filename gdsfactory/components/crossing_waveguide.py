@@ -8,15 +8,17 @@ import numpy as np
 from numpy import float64
 
 import gdsfactory as gf
-from gdsfactory import cell
 from gdsfactory.component import Component
-from gdsfactory.components.bezier import (
-    bezier,
-    find_min_curv_bezier_control_points,
-)
+from gdsfactory.components.bezier import bezier, find_min_curv_bezier_control_points
 from gdsfactory.components.ellipse import ellipse
 from gdsfactory.components.taper import taper
-from gdsfactory.typings import ComponentSpec, CrossSectionSpec, LayerSpec
+from gdsfactory.typings import (
+    ComponentFactory,
+    ComponentSpec,
+    CrossSectionSpec,
+    Delta,
+    LayerSpec,
+)
 
 
 def snap_to_grid(p: float, grid_per_unit: int = 1000) -> float64:
@@ -24,7 +26,7 @@ def snap_to_grid(p: float, grid_per_unit: int = 1000) -> float64:
     return np.round(p * grid_per_unit) / grid_per_unit
 
 
-@cell
+@gf.cell
 def crossing_arm(
     r1: float = 3.0,
     r2: float = 1.1,
@@ -88,7 +90,7 @@ def crossing_arm(
     return c
 
 
-@cell
+@gf.cell
 def crossing(
     arm: ComponentSpec = crossing_arm,
     cross_section: CrossSectionSpec = "strip",
@@ -119,8 +121,8 @@ def crossing(
 _taper = partial(taper, width2=2.5, length=3)
 
 
-@cell
-def crossing_from_taper(taper=_taper) -> Component:
+@gf.cell
+def crossing_from_taper(taper: ComponentFactory = _taper) -> Component:
     """Returns Crossing based on a taper.
 
     The default is a dummy taper.
@@ -143,7 +145,7 @@ def crossing_from_taper(taper=_taper) -> Component:
     return c
 
 
-@cell
+@gf.cell
 def crossing_etched(
     width: float = 0.5,
     r1: float = 3.0,
@@ -217,11 +219,11 @@ def crossing_etched(
     return c
 
 
-@cell
+@gf.cell
 def crossing45(
     crossing: ComponentSpec = crossing,
     port_spacing: float = 40.0,
-    dx: float | None = None,
+    dx: Delta | None = None,
     alpha: float = 0.08,
     npoints: int = 101,
     cross_section: CrossSectionSpec = "strip",
@@ -284,9 +286,9 @@ def crossing45(
     )
 
     tol = 1e-2
-    assert abs(bend.info["start_angle"] - start_angle) < tol, print(
-        f"{bend.info['start_angle']} differs from {start_angle}"
-    )
+    assert (
+        abs(bend.info["start_angle"] - start_angle) < tol
+    ), f"{bend.info['start_angle']} differs from {start_angle}"
     assert abs(bend.info["end_angle"] - end_angle) < tol, bend.info["end_angle"]
 
     b_tr = c << bend

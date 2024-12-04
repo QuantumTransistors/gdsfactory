@@ -1,7 +1,8 @@
+import warnings
 from typing import Any
 
 import gdsfactory as gf
-from gdsfactory.typings import ComponentSpec, CrossSectionSpec
+from gdsfactory.typings import AngleInDegrees, ComponentSpec, CrossSectionSpec
 
 
 def add_fiber_array_optical_south_electrical_north(
@@ -10,14 +11,15 @@ def add_fiber_array_optical_south_electrical_north(
     grating_coupler: ComponentSpec,
     cross_section_metal: CrossSectionSpec,
     with_loopback: bool = True,
-    pad_spacing: float = 100.0,
-    fiber_spacing: float = 127.0,
+    pad_pitch: float = 100.0,
+    pitch: float = 127.0,
     pad_gc_spacing: float = 250.0,
     electrical_port_names: list[str] | None = None,
-    electrical_port_orientation: float | None = 90,
+    electrical_port_orientation: AngleInDegrees | None = 90,
     npads: int | None = None,
-    analysis_settings: dict[str, Any] | None = None,
-    **kwargs,
+    port_types_grating_couplers: list[str] | None = None,
+    pad_spacing: float | None = None,
+    **kwargs: Any,
 ) -> gf.Component:
     """Returns a fiber array with Optical gratings on South and Electrical pads on North.
 
@@ -29,13 +31,14 @@ def add_fiber_array_optical_south_electrical_north(
         grating_coupler: grating coupler function.
         cross_section_metal: metal cross section.
         with_loopback: whether to add a loopback port.
-        pad_spacing: spacing between pads.
-        fiber_spacing: spacing between grating couplers.
+        pad_pitch: spacing between pads.
+        pitch: spacing between grating couplers.
         pad_gc_spacing: spacing between pads and grating couplers.
         electrical_port_names: list of electrical port names. Defaults to all.
         electrical_port_orientation: orientation of electrical ports. Defaults to 90.
         npads: number of pads. Defaults to one per electrical_port_names.
-        analysis_settings: analysis settings.
+        port_types_grating_couplers: port types for grating couplers. Defaults to vertical TE, TM, and dual.
+        pad_spacing: Deprecated. Use pad_pitch instead.
         kwargs: additional arguments.
 
     Keyword Args:
@@ -43,7 +46,6 @@ def add_fiber_array_optical_south_electrical_north(
         measurement: measurement name.
         measurement_settings: measurement settings.
         analysis: analysis name.
-        analysis_settings: analysis settings.
         doe: Design of Experiment.
         anchor: anchor point for the label. Defaults to south-west "sw". \
             Valid options are: "n", "s", "e", "w", "ne", "nw", "se", "sw", "c".
@@ -71,21 +73,32 @@ def add_fiber_array_optical_south_electrical_north(
         grating_indices: list of grating coupler indices.
         routing_straight: function to route.
         routing_method: route_single.
-        optical_routing_type: None: auto, 0: no extension, 1: standard, 2: check.
         gc_rotation: fiber coupler rotation in degrees. Defaults to -90.
         input_port_indexes: to connect.
 
     """
+    if pad_spacing is not None:
+        warnings.warn(
+            "pad_spacing is deprecated. Use pad_pitch instead.",
+            DeprecationWarning,
+        )
+        pad_pitch = pad_spacing
+
     c = gf.Component()
     component = gf.get_component(component)
     r = c << gf.routing.add_fiber_array(
         component=component,
         grating_coupler=grating_coupler,
         with_loopback=with_loopback,
-        fiber_spacing=fiber_spacing,
+        pitch=pitch,
         **kwargs,
     )
-    optical_ports = r.ports.filter(port_type="optical")
+    port_types_grating_couplers = (
+        port_types_grating_couplers or gf.CONF.port_types_grating_couplers
+    )
+    optical_ports = [
+        port for port in r.ports if port.port_type in port_types_grating_couplers
+    ]
     c.add_ports(optical_ports)
 
     electrical_ports = r.ports.filter(
@@ -97,7 +110,7 @@ def add_fiber_array_optical_south_electrical_north(
     pads = c << gf.components.array(
         component=pad,
         columns=npads,
-        spacing=(pad_spacing, 0),
+        column_pitch=pad_pitch,
     )
     pads.dx = r.dx
     pads.dymin = r.dymin + pad_gc_spacing
@@ -117,8 +130,6 @@ def add_fiber_array_optical_south_electrical_north(
     )
 
     c.add_ports(ports2)
-    analysis_settings = analysis_settings or {}
-    # c.copy_child_info(r)
     return c
 
 
@@ -131,6 +142,7 @@ if __name__ == "__main__":
         pad=gf.c.pad,
         grating_coupler=gf.c.grating_coupler_te,
         cross_section_metal=xs.metal_routing,
-        pad_spacing=100,
+        pad_pitch=100,
     )
+    c.pprint_ports()
     c.show()

@@ -1,11 +1,17 @@
 import gdsfactory as gf
 from gdsfactory.generic_tech import LAYER
-from gdsfactory.typings import Component, ComponentSpec, CrossSectionSpec, LayerSpec
+from gdsfactory.typings import (
+    Component,
+    ComponentSpec,
+    CrossSectionSpec,
+    LayerSpec,
+    Size,
+)
 
 
 @gf.cell
 def die_with_pads(
-    size: tuple[float, float] = (11470.0, 4900.0),
+    size: Size = (11470.0, 4900.0),
     ngratings: int = 14,
     npads: int = 31,
     grating_pitch: float = 250.0,
@@ -17,6 +23,7 @@ def die_with_pads(
     edge_to_pad_distance: float = 150.0,
     edge_to_grating_distance: float = 150.0,
     with_loopback: bool = True,
+    loopback_radius: float | None = None,
 ) -> Component:
     """A die with grating couplers and pads.
 
@@ -33,6 +40,7 @@ def die_with_pads(
         edge_to_pad_distance: the distance from the edge to the pads, in um.
         edge_to_grating_distance: the distance from the edge to the grating couplers, in um.
         with_loopback: if True, adds a loopback between edge GCs. Only works for rotation = 90 for now.
+        loopback_radius: optional radius for loopback.
     """
     c = Component()
     fp = c << gf.c.rectangle(
@@ -49,6 +57,7 @@ def die_with_pads(
         with_loopback=with_loopback,
         grating_coupler=grating_coupler,
         cross_section=cross_section,
+        radius=loopback_radius,
     )
     left = c << gca
     left.drotate(-90)

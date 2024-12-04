@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 from pytest_regressions.data_regression import DataRegressionFixture
 
-from gdsfactory.components import cells
+import gdsfactory as gf
 from gdsfactory.config import PATH
 from gdsfactory.difftest import difftest
+from gdsfactory.get_factories import get_cells
 from gdsfactory.serialization import clean_value_json
+
+cells = get_cells([gf.components])
 
 skip_test = {
     "version_stamp",
@@ -23,7 +28,7 @@ cells_to_test = set(cells.keys()) - skip_test
 
 
 @pytest.fixture(params=cells_to_test)
-def component_name(request) -> str:
+def component_name(request: pytest.FixtureRequest) -> Any:
     return request.param
 
 

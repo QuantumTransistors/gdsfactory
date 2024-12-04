@@ -4,13 +4,14 @@ from pytest_regressions.data_regression import DataRegressionFixture
 
 import gdsfactory as gf
 from gdsfactory import Component, Port
+from gdsfactory.typings import AngleInDegrees, Delta, Layer
 
 
 def test_connect_bundle_u_indirect(
     data_regression: DataRegressionFixture,
-    dy=-200,
-    orientation=180,
-    layer=(1, 0),
+    dy: Delta = -200,
+    orientation: AngleInDegrees = 180,
+    layer: Layer = (1, 0),
     check: bool = True,
 ) -> None:
     """Test routing a bundle of ports with indirect connection.
@@ -73,6 +74,7 @@ def test_connect_bundle_u_indirect(
         bend=gf.components.bend_euler,
         radius=5,
         sort_ports=True,
+        cross_section=gf.cross_section.strip,
     )
     lengths = {i: route.length for i, route in enumerate(routes)}
     if check:

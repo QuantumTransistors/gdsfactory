@@ -1,22 +1,24 @@
 from __future__ import annotations
 
 import warnings
-from collections.abc import Callable, Hashable, Iterable
 from functools import cache
 from pathlib import Path
+from typing import Any
 
 import kfactory as kf
 from kfactory import KCLayout
 
 from gdsfactory.component import Component
+from gdsfactory.typings import PostProcesses
 
 
 @cache
 def import_gds(
     gdspath: str | Path,
     cellname: str | None = None,
-    post_process: Hashable[Iterable[Callable[[Component], None]]] | None = None,
-    **kwargs,
+    post_process: PostProcesses | None = None,
+    rename_duplicated_cells: bool = False,
+    **kwargs: Any,
 ) -> Component:
     """Reads a GDS file and returns a Component.
 
@@ -24,6 +26,7 @@ def import_gds(
         gdspath: path to GDS file.
         cellname: name of the cell to return. Defaults to top cell.
         post_process: function to run after reading the GDS file.
+        rename_duplicated_cells: if True, rename duplicated cells.
         kwargs: deprecated and ignored.
     """
     if kwargs:
@@ -36,6 +39,16 @@ def import_gds(
     temp_kcl.read(gdspath, options=options)
     cellname = cellname or temp_kcl.top_cell().name
     kcell = temp_kcl[cellname]
+    if rename_duplicated_cells:
+        read_options = kf.kcell.load_layout_options()
+        read_options.cell_conflict_resolution = (
+            kf.kdb.LoadLayoutOptions.CellConflictResolution.RenameCell
+        )
+
+    if hasattr(temp_kcl, "cross_sections"):
+        for cross_section in temp_kcl.cross_sections.cross_sections.values():
+            kf.kcl.get_cross_section(cross_section)
+
     c = kcell_to_component(kcell)
     for pp in post_process or []:
         pp(c)
@@ -60,7 +73,7 @@ def import_gds_with_conflicts(
     gdspath: str | Path,
     cellname: str | None = None,
     name: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> Component:
     """Reads a GDS file and returns a Component.
 
@@ -76,38 +89,22 @@ def import_gds_with_conflicts(
         RenameCell: The new cell will be renamed to become unique
         SkipNewCell: The new cell is skipped entirely (including child cells which are not used otherwise)
     """
-    if kwargs:
-        for k in kwargs:
-            warnings.warn(f"kwargs {k!r} is deprecated and ignored")
-
-    read_options = kf.kcell.load_layout_options()
-    read_options.cell_conflict_resolution = (
-        kf.kdb.LoadLayoutOptions.CellConflictResolution.RenameCell
+    warnings.warn(
+        "import_gds_with_conflicts is deprecated, use import_gds with rename_duplicated_cells=True"
     )
-    top_cells = set(kf.kcl.top_cells())
-    kf.kcl.read(gdspath, read_options, test_merge=True)
-    new_top_cells = set(kf.kcl.top_cells()) - top_cells
-    if len(new_top_cells) != 1:
-        raise ValueError(f"Expected 1 new top cell, got {len(new_top_cells)}")
 
-    if cellname is None:
-        cellname = new_top_cells.pop().name if new_top_cells else kf.kcl.top_kcell.name
-    kcell = kf.kcl[cellname]
-    c = Component()
-    c._kdb_cell.copy_tree(kcell._kdb_cell)
-    c.add_ports(kcell.ports)
-    c._settings = kcell.settings.model_copy()
-    c.info = kcell.info.model_copy()
-    name = name or kcell.name
-    c.name = name
-    return c
+    return import_gds(
+        gdspath, cellname=cellname, rename_duplicated_cells=True, **kwargs
+    )
 
 
 if __name__ == "__main__":
     import gdsfactory as gf
 
-    c = gf.components.straight()
+    c = gf.components.mzi()
+    c.pprint_ports()
     gdspath = c.write_gds()
 
     c = import_gds(gdspath)
+    c.pprint_ports()
     c.show()

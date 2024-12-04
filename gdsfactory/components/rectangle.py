@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import partial
+from typing import Any
 
 import numpy as np
 
-from gdsfactory import cell
+import gdsfactory as gf
 from gdsfactory.component import Component
 from gdsfactory.components.compass import compass
-from gdsfactory.typings import Ints, Iterable, LayerSpec, LayerSpecs
+from gdsfactory.typings import Ints, LayerSpec, LayerSpecs, Size
 
 
-@cell
+@gf.cell
 def rectangle(
-    size=(4.0, 2.0),
+    size: Size = (4.0, 2.0),
     layer: LayerSpec = "WG",
     centered: bool = False,
     port_type: str | None = "electrical",
@@ -40,24 +42,24 @@ def rectangle(
 
 
 fiber_size = 10.4
-marker_te = partial(rectangle, size=[fiber_size, fiber_size], layer="TE", centered=True)
-marker_tm = partial(rectangle, size=[fiber_size, fiber_size], layer="TM", centered=True)
+marker_te = partial(rectangle, size=(fiber_size, fiber_size), layer="TE", centered=True)
+marker_tm = partial(rectangle, size=(fiber_size, fiber_size), layer="TM", centered=True)
 
 
-@cell
+@gf.cell
 def rectangles(
-    size=(4.0, 2.0),
-    offsets: Iterable[float] = (0, 1),
+    size: Size = (4.0, 2.0),
+    offsets: Sequence[float] | None = None,
     layers: LayerSpecs = ("WG", "SLAB150"),
     centered: bool = True,
-    **kwargs,
+    **kwargs: Any,
 ) -> Component:
     """Returns overimposed rectangles.
 
     Args:
         size: (tuple) Width and height of rectangle.
         layers: Specific layer to put polygon geometry on.
-        offsets: list of offsets.
+        offsets: list of offsets. If None, all rectangles have a zero offset.
         centered: True sets center to (0, 0), False sets south-west of first rectangle to (0, 0).
         kwargs: additional arguments to pass to rectangle.
 
@@ -79,15 +81,15 @@ def rectangles(
 
     """
     c = Component()
-    size = np.array(size)
-
+    size_np = np.array(size, dtype=np.float64)
     ref0 = None
+    offsets = offsets or [0] * len(layers)
 
     if len(offsets) != len(layers):
         raise ValueError(f"len(offsets) != len(layers) {len(offsets)} != {len(layers)}")
     for layer, offset in zip(layers, offsets):
         ref = c << rectangle(
-            size=tuple(size + 2 * offset), layer=layer, centered=centered, **kwargs
+            size=tuple(size_np + 2 * offset), layer=layer, centered=centered, **kwargs
         )
         if ref0:
             ref.dcenter = ref0.dcenter
@@ -101,7 +103,8 @@ if __name__ == "__main__":
     # c = rectangles(offsets=(0, 1), centered=False)
     # c = rectangle(size=(3, 2), centered=False, layer=(2, 3))
     # c = rectangle(size=(3, 2), centered=True, layer=(2, 3))
-    c = rectangle(port_orientations=())
+    c = rectangle(port_type=None)
+    print(c.settings)
     # print(c.ports)
     # print(c.name)
     c.show()

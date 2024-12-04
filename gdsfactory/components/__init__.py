@@ -1,11 +1,9 @@
-"""Each component factory component returns a component.
+"""Each Parametric cell returns a component.
 
 Make sure your components get imported here so the PDK registers them.
 """
 
 from __future__ import annotations
-
-import sys
 
 from gdsfactory.components.add_fiber_array_optical_south_electrical_north import (
     add_fiber_array_optical_south_electrical_north,
@@ -14,7 +12,7 @@ from gdsfactory.components.add_termination import add_termination
 from gdsfactory.components.add_trenches import add_trenches, add_trenches90
 from gdsfactory.components.align import add_frame, align_wafer
 from gdsfactory.components.array_component import array
-from gdsfactory.components.awg import awg
+from gdsfactory.components.awg import awg, free_propagation_region
 from gdsfactory.components.bbox import bbox
 from gdsfactory.components.bend_circular import (
     bend_circular,
@@ -87,7 +85,7 @@ from gdsfactory.components.cutback_loss import (
     cutback_loss_spirals,
 )
 from gdsfactory.components.cutback_splitter import cutback_splitter
-from gdsfactory.components.dbr import dbr
+from gdsfactory.components.dbr import dbr, dbr_cell
 from gdsfactory.components.dbr_tapered import dbr_tapered
 from gdsfactory.components.delay_snake import delay_snake
 from gdsfactory.components.delay_snake2 import delay_snake2
@@ -147,10 +145,7 @@ from gdsfactory.components.grating_coupler_rectangular_arbitrary import (
     grating_coupler_rectangular_arbitrary,
 )
 from gdsfactory.components.grating_coupler_tree import grating_coupler_tree
-from gdsfactory.components.greek_cross import (
-    greek_cross,
-    greek_cross_with_pads,
-)
+from gdsfactory.components.greek_cross import greek_cross, greek_cross_with_pads
 from gdsfactory.components.hline import hline
 from gdsfactory.components.interdigital_capacitor import interdigital_capacitor
 from gdsfactory.components.L import L
@@ -257,6 +252,8 @@ from gdsfactory.components.straight_pin import straight_pin, straight_pn
 from gdsfactory.components.straight_pin_slot import straight_pin_slot
 from gdsfactory.components.taper import (
     taper,
+    taper_electrical,
+    taper_nc_sc,
     taper_sc_nc,
     taper_strip_to_ridge,
     taper_strip_to_ridge_trenches,
@@ -281,7 +278,7 @@ from gdsfactory.components.text_rectangular import (
 from gdsfactory.components.triangles import triangle, triangle2, triangle4
 from gdsfactory.components.verniers import verniers
 from gdsfactory.components.version_stamp import pixel, qrcode, version_stamp
-from gdsfactory.components.via import via, via1, via2, viac
+from gdsfactory.components.via import via, via1, via2, via_circular, viac
 from gdsfactory.components.via_chain import via_chain
 from gdsfactory.components.via_corner import via_corner
 from gdsfactory.components.via_stack import (
@@ -300,36 +297,35 @@ from gdsfactory.components.via_stack import (
 from gdsfactory.components.via_stack_with_offset import via_stack_with_offset
 from gdsfactory.components.wafer import wafer
 from gdsfactory.components.wire import wire_corner, wire_corner45, wire_straight
-from gdsfactory.get_factories import get_cells
 
 __all__ = [
-    "awg",
-    "add_termination",
     "C",
     "L",
     "add_fiber_array_optical_south_electrical_north",
     "add_frame",
+    "add_termination",
     "add_trenches",
     "add_trenches90",
     "align_wafer",
     "array",
+    "awg",
     "bbox",
     "bend_circular",
     "bend_circular180",
-    "bend_circular_heater",
     "bend_circular_all_angle",
+    "bend_circular_heater",
     "bend_euler",
-    "bend_euler_all_angle",
     "bend_euler180",
+    "bend_euler_all_angle",
     "bend_euler_s",
     "bend_s",
     "bezier",
     "cavity",
     "cdsem_all",
+    "cdsem_bend180",
+    "cdsem_coupler",
     "cdsem_straight",
     "cdsem_straight_density",
-    "cdsem_coupler",
-    "cdsem_bend180",
     "circle",
     "coh_rx_single_pol",
     "coh_tx_dual_pol",
@@ -359,10 +355,10 @@ __all__ = [
     "crossing_from_taper",
     "cutback_2x2",
     "cutback_bend",
-    "cutback_bend180",
-    "cutback_bend180circular",
     "cutback_bend90",
     "cutback_bend90circular",
+    "cutback_bend180",
+    "cutback_bend180circular",
     "cutback_component",
     "cutback_component_mirror",
     "cutback_loss",
@@ -372,6 +368,7 @@ __all__ = [
     "cutback_loss_spirals",
     "cutback_splitter",
     "dbr",
+    "dbr_cell",
     "dbr_tapered",
     "delay_snake",
     "delay_snake2",
@@ -392,6 +389,7 @@ __all__ = [
     "fiber",
     "fiber_array",
     "fiducial_squares",
+    "free_propagation_region",
     "ge_detector_straight_si_contacts",
     "generate_doe",
     "grating_coupler_array",
@@ -414,6 +412,7 @@ __all__ = [
     "grating_tooth_points",
     "greek_cross",
     "greek_cross_with_pads",
+    "hexagon",
     "hline",
     "interdigital_capacitor",
     "litho_calipers",
@@ -424,12 +423,12 @@ __all__ = [
     "loss_deembedding_ch13_24",
     "loss_deembedding_ch14_23",
     "mmi",
-    "mmi_tapered",
     "mmi1x2",
     "mmi1x2_with_sbend",
     "mmi2x2",
     "mmi2x2_with_sbend",
     "mmi_90degree_hybrid",
+    "mmi_tapered",
     "mode_converter",
     "mzi",
     "mzi1x2_2x2",
@@ -448,6 +447,7 @@ __all__ = [
     "mzit_lattice",
     "mzm",
     "nxn",
+    "octagon",
     "optimal_90deg",
     "optimal_hairpin",
     "optimal_step",
@@ -456,9 +456,9 @@ __all__ = [
     "pad",
     "pad_array",
     "pad_array0",
+    "pad_array90",
     "pad_array180",
     "pad_array270",
-    "pad_array90",
     "pad_gsg_open",
     "pad_gsg_short",
     "pad_rectangular",
@@ -490,8 +490,8 @@ __all__ = [
     "seal_ring_segmented",
     "snspd",
     "spiral",
-    "spiral_inductor",
     "spiral_double",
+    "spiral_inductor",
     "spiral_racetrack",
     "spiral_racetrack_fixed_length",
     "spiral_racetrack_heater_doped",
@@ -522,19 +522,21 @@ __all__ = [
     "taper_cross_section_linear",
     "taper_cross_section_parabolic",
     "taper_cross_section_sine",
+    "taper_electrical",
     "taper_from_csv",
+    "taper_nc_sc",
     "taper_parabolic",
     "taper_sc_nc",
     "taper_strip_to_ridge",
     "taper_strip_to_ridge_trenches",
     "terminator",
     "text",
-    "text_klayout",
     "text_freetype",
+    "text_klayout",
     "text_lines",
     "text_rectangular",
-    "text_rectangular_multi_layer",
     "text_rectangular_mini",
+    "text_rectangular_multi_layer",
     "triangle",
     "triangle2",
     "triangle4",
@@ -544,26 +546,23 @@ __all__ = [
     "via1",
     "via2",
     "via_chain",
+    "via_circular",
     "via_corner",
     "via_stack",
+    "via_stack_corner45",
+    "via_stack_corner45_extended",
     "via_stack_heater_m3",
-    "via_stack_m1_mtop",
-    "via_stack_slab_m1_horizontal",
     "via_stack_heater_mtop",
     "via_stack_heater_mtop_mini",
+    "via_stack_m1_mtop",
+    "via_stack_npp_m1",
+    "via_stack_slab_m1_horizontal",
     "via_stack_slab_m3",
     "via_stack_slab_npp_m3",
     "via_stack_with_offset",
-    "via_stack_npp_m1",
-    "via_stack_corner45",
-    "via_stack_corner45_extended",
     "viac",
     "wafer",
     "wire_corner",
     "wire_corner45",
     "wire_straight",
-    "hexagon",
-    "octagon",
 ]
-
-cells = get_cells(sys.modules[__name__])

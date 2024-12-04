@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import gdsfactory as gf
 from gdsfactory.component import Component, ComponentAllAngle
-from gdsfactory.cross_section import CrossSectionSpec
+from gdsfactory.typings import CrossSectionSpec
 
 
 @gf.cell
@@ -12,7 +14,7 @@ def straight(
     length: float = 10.0,
     npoints: int = 2,
     cross_section: CrossSectionSpec = "strip",
-    **kwargs,
+    **kwargs: Any,
 ) -> Component:
     """Returns a Straight waveguide.
 
@@ -43,7 +45,7 @@ def straight_all_angle(
     length: float = 10.0,
     npoints: int = 2,
     cross_section: CrossSectionSpec = "strip",
-    **kwargs,
+    **kwargs: Any,
 ) -> ComponentAllAngle:
     """Returns a Straight waveguide with offgrid ports.
 
@@ -72,14 +74,15 @@ def straight_all_angle(
 if __name__ == "__main__":
     import gdsfactory as gf
 
-    c = gf.Component()
-    w = straight(
+    # c = gf.Component()
+    c = straight(
         length=10,
+        width=2,
         # cross_section="rib_bbox",
     )
-    ref = c << w
-    ref.dxmin = 10
-    p = c.get_polygons_points()
-    p = list(p.values())
-    print(p[0][0])
+    # ref = c << w
+    # ref.dxmin = 10
+    # p = c.get_polygons_points()
+    # p = list(p.values())
+    # print(p[0][0])
     c.show()

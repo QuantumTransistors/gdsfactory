@@ -14,15 +14,16 @@ import json
 import warnings
 from collections.abc import Callable
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import kfactory as kf
 import numpy as np
+import numpy.typing as npt
 import yaml
-from typing_extensions import TypeVar
 
 import gdsfactory as gf
 from gdsfactory.component import container
+from gdsfactory.config import CONF
 from gdsfactory.port import select_ports
 from gdsfactory.serialization import convert_tuples_to_lists
 
@@ -32,16 +33,15 @@ if TYPE_CHECKING:
 
 Layer = tuple[int, int]
 Layers = tuple[Layer, ...]
-LayerSpec = Layer | str | int | None
+LayerSpec = Layer | str | int
 LayerSpecs = tuple[LayerSpec, ...]
 nm = 1e-3
 
-T = TypeVar("T")
-
 
 def _rotate(
-    vector: np.typing.NDArray[T], rotation_matrix: np.typing.NDArray[T]
-) -> np.typing.NDArray[T]:
+    vector: npt.NDArray[np.floating[Any]],
+    rotation_matrix: npt.NDArray[np.floating[Any]],
+) -> npt.NDArray[np.floating[Any]]:
     """Rotate a vector by a rotation matrix."""
     return rotation_matrix @ vector
 
@@ -171,7 +171,7 @@ def add_pin_rectangle_inside(
     component: Component,
     port: Port,
     pin_length: float = 0.1,
-    layer: LayerSpec = "PORT",
+    layer: LayerSpec | None = "PORT",
     layer_label: LayerSpec = "TEXT",
 ) -> None:
     """Add square pin towards the inside of the port.
@@ -195,11 +195,12 @@ def add_pin_rectangle_inside(
           |      __       |
           |_______________|
     """
-    p = port
-    poly = gf.kdb.DPolygon(
-        gf.kdb.DBox(-pin_length, -p.dwidth / 2, 0, p.dwidth / 2)
-    ).transform(p.dcplx_trans)
-    component.shapes(gf.get_layer(layer)).insert(poly)
+    if layer:
+        p = port
+        poly = gf.kdb.DPolygon(
+            gf.kdb.DBox(-pin_length, -p.dwidth / 2, 0, p.dwidth / 2)
+        ).transform(p.dcplx_trans)
+        component.shapes(gf.get_layer(layer)).insert(poly)
 
     if layer_label:
         component.add_label(
@@ -213,7 +214,7 @@ def add_pin_rectangle(
     component: Component,
     port: Port,
     pin_length: float = 0.1,
-    layer: LayerSpec = "PORT",
+    layer: LayerSpec | None = "PORT",
     layer_label: LayerSpec = "TEXT",
     port_margin: float = 0.0,
 ) -> None:
@@ -240,12 +241,13 @@ def add_pin_rectangle(
           |_______________|
                  __
     """
-    p = port
-    width = p.dwidth + port_margin
-    poly = gf.kdb.DPolygon(
-        gf.kdb.DBox(-pin_length / 2, -width / 2, +pin_length / 2, width / 2)
-    ).transform(p.dcplx_trans)
-    component.shapes(gf.get_layer(layer)).insert(poly)
+    if layer:
+        p = port
+        width = p.dwidth + port_margin
+        poly = gf.kdb.DPolygon(
+            gf.kdb.DBox(-pin_length / 2, -width / 2, +pin_length / 2, width / 2)
+        ).transform(p.dcplx_trans)
+        component.shapes(gf.get_layer(layer)).insert(poly)
 
     if layer_label:
         component.add_label(
@@ -317,7 +319,7 @@ def add_outline(
     component: Component,
     reference: Instance | None = None,
     layer: LayerSpec = "DEVREC",
-    **kwargs,
+    **kwargs: Any,
 ) -> None:
     """Adds devices outline bounding box in layer.
 
@@ -349,7 +351,7 @@ def add_pins_siepic(
     port_type: str = "optical",
     layer: LayerSpec = "PORT",
     pin_length: float = 10 * nm,
-    **kwargs,
+    **kwargs: Any,
 ) -> Component:
     """Add pins.
 
@@ -390,7 +392,7 @@ def add_pins(
     component: Component,
     port_type: str | None = None,
     function: Callable = add_pin_rectangle_inside,
-    **kwargs,
+    **kwargs: Any,
 ) -> None:
     """Add Pin port markers.
 
@@ -461,16 +463,16 @@ def add_settings_label(
 def add_instance_label(
     component: Component,
     reference: Instance,
-    instance_name: str | None = None,
     layer: LayerSpec | None = None,
+    instance_name: str | None = None,
 ) -> None:
     """Adds label to a reference in a component.
 
     Args:
         component: to add instance label.
         reference: to add label.
-        instance_name: label name.
         layer: layer for the label.
+        instance_name: label name.
 
     """
     try:
@@ -482,6 +484,8 @@ def add_instance_label(
         instance_name
         or f"{reference.parent.name},{int(reference.dx)},{int(reference.dy)}"
     )
+
+    layer = layer or CONF.layer_label
 
     component.add_label(
         text=instance_name,

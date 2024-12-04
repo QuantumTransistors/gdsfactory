@@ -16,7 +16,17 @@ if TYPE_CHECKING:
 
 
 class AbstractLayer(BaseModel):
-    """Generic design layer."""
+    """Generic design layer.
+
+    Attributes:
+        sizings_xoffsets: sequence of xoffset sizings to apply to this Logical or Derived layer.
+        sizings_yoffsets: sequence of yoffset sizings to apply to this Logical or Derived layer.
+        sizings_modes: sequence of sizing modes to apply to this Logical or Derived layer.
+    """
+
+    sizings_xoffsets: tuple[int, ...] = (0,)
+    sizings_yoffsets: tuple[int, ...] = (0,)
+    sizings_modes: tuple[int, ...] = (2,)
 
     # Boolean AND (&)
     def __and__(self, other: AbstractLayer) -> DerivedLayer:
@@ -77,13 +87,74 @@ class AbstractLayer(BaseModel):
         """
         return DerivedLayer(layer1=self, layer2=other, operation="not")
 
+    def sized(
+        self,
+        xoffset: int | tuple[int, ...],
+        yoffset: int | tuple[int, ...] | None = None,
+        mode: int | tuple[int, ...] | None = None,
+    ) -> AbstractLayer:
+        """Accumulates a list of sizing operations for the layer by the provided offset (in dbu).
+
+        Args:
+            xoffset (int | tuple): number of dbu units to buffer by. Can be a tuple for sequential sizing operations.
+            yoffset (int | tuple): number of dbu units to buffer by in the y-direction. If not specified, uses xfactor. Can be a tuple for sequential sizing operations.
+            mode (int | tuple): mode of the sizing operation(s). Can be a tuple for sequential sizing operations.
+        """
+        #  Validate inputs
+        xoffset_list: list[int]
+        if isinstance(xoffset, int):
+            xoffset_list = [xoffset]
+        else:
+            xoffset_list = list(xoffset)
+        yoffset_list: list[int]
+        if isinstance(yoffset, tuple):
+            if len(yoffset) != len(xoffset_list):
+                raise ValueError(
+                    "If yoffset is provided as a tuple, length must be equal to xoffset!"
+                )
+            else:
+                yoffset_list = list(yoffset)
+        elif yoffset is None:
+            yoffset_list = xoffset_list
+        else:
+            yoffset_list = [yoffset] * len(xoffset_list)
+
+        mode_list: list[int]
+        if isinstance(mode, tuple):
+            if len(mode) != len(xoffset_list):
+                raise ValueError(
+                    "If mode is provided as a tuple, length must be equal to xoffset!"
+                )
+            else:
+                mode_list = list(mode)
+        elif mode is None:
+            mode_list = [2] * len(xoffset_list)
+        else:
+            mode_list = [mode] * len(xoffset_list)
+
+        # Accumulate
+        sizings_xoffsets = list(self.sizings_xoffsets) + xoffset_list
+        sizings_yoffsets = list(self.sizings_yoffsets) + yoffset_list
+        sizings_modes = list(self.sizings_modes) + mode_list
+
+        # Return a copy of the layer with updated sizings
+        current_layer_attributes = self.__dict__.copy()
+        current_layer_attributes["sizings_xoffsets"] = sizings_xoffsets
+        current_layer_attributes["sizings_yoffsets"] = sizings_yoffsets
+        current_layer_attributes["sizings_modes"] = sizings_modes
+        if isinstance(self, LogicalLayer):
+            current_layer_class = LogicalLayer
+        else:
+            current_layer_class = DerivedLayer
+        return current_layer_class(**current_layer_attributes)
+
 
 class LogicalLayer(AbstractLayer):
     """GDS design layer."""
 
     layer: tuple[int, int] | kf.kcell.LayerEnum | int
 
-    def __eq__(self, other):
+    def __eq__(self, other: AbstractLayer) -> bool:
         """Check if two LogicalLayer instances are equal.
 
         This method compares the 'layer' attribute of the two LogicalLayer instances.
@@ -101,7 +172,7 @@ class LogicalLayer(AbstractLayer):
             raise NotImplementedError(f"{other} is not a {type(self)}")
         return self.layer == other.layer
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Generates a hash value for a LogicalLayer instance.
 
         This method allows LogicalLayer instances to be used in hash-based data structures such as sets and dictionaries.
@@ -127,7 +198,16 @@ class LogicalLayer(AbstractLayer):
         polygons = (
             polygons_per_layer[layer_index] if layer_index in polygons_per_layer else []
         )
-        return kf.kdb.Region(polygons)
+        region = kf.kdb.Region(polygons)
+        if not (
+            all(v == 0 for v in self.sizings_xoffsets)
+            and all(v == 0 for v in self.sizings_yoffsets)
+        ):
+            for xoffset, yoffset, mode in zip(
+                self.sizings_xoffsets, self.sizings_yoffsets, self.sizings_modes
+            ):
+                region = region.sized(xoffset, yoffset, mode)
+        return region
 
     def __repr__(self) -> str:
         """Print text representation."""
@@ -151,7 +231,7 @@ class DerivedLayer(AbstractLayer):
     layer2: LogicalLayer | DerivedLayer | int
     operation: Literal["and", "&", "or", "|", "xor", "^", "not", "-"]
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         """Generates a hash value for a LogicalLayer instance.
 
         This method allows LogicalLayer instances to be used in hash-based data structures such as sets and dictionaries.
@@ -196,7 +276,16 @@ class DerivedLayer(AbstractLayer):
         """
         r1 = self.layer1.get_shapes(component)
         r2 = self.layer2.get_shapes(component)
-        return gf.component.boolean_operations[self.operation](r1, r2)
+        region = gf.component.boolean_operations[self.operation](r1, r2)
+        if not (
+            all(v == 0 for v in self.sizings_xoffsets)
+            and all(v == 0 for v in self.sizings_yoffsets)
+        ):
+            for xoffset, yoffset, mode in zip(
+                self.sizings_xoffsets, self.sizings_yoffsets, self.sizings_modes
+            ):
+                region = region.sized(xoffset, yoffset, mode)
+        return region
 
     def __repr__(self) -> str:
         """Print text representation."""
@@ -318,7 +407,7 @@ class LayerStack(BaseModel):
         table = Table(show_header=True, header_style="bold")
         keys = ["layer", "thickness", "material", "sidewall_angle"]
 
-        for key in ["name"] + keys:
+        for key in ["name", *keys]:
             table.add_column(key)
 
         for layer_name, layer in self.layers.items():
@@ -342,7 +431,9 @@ class LayerStack(BaseModel):
 
         return layer_to_thickness
 
-    def get_component_with_derived_layers(self, component, **kwargs):
+    def get_component_with_derived_layers(
+        self, component: Component, **kwargs: Any
+    ) -> Component:
         """Returns component with derived layers."""
         return get_component_with_derived_layers(
             component=component, layer_stack=self, **kwargs
@@ -385,7 +476,7 @@ class LayerStack(BaseModel):
     def to_dict(self) -> dict[str, dict[str, Any]]:
         return {level_name: dict(level) for level_name, level in self.layers.items()}
 
-    def __getitem__(self, key) -> LayerLevel:
+    def __getitem__(self, key: str) -> LayerLevel:
         """Access layer stack elements."""
         if key not in self.layers:
             layers = list(self.layers.keys())
@@ -543,13 +634,13 @@ class LayerStack(BaseModel):
 
         return out
 
-    def filtered(self, layers) -> LayerStack:
+    def filtered(self, layers: list[str]) -> LayerStack:
         """Returns filtered layerstack, given layer specs."""
         return LayerStack(
             layers={k: self.layers[k] for k in layers if k in self.layers}
         )
 
-    def z_offset(self, dz) -> LayerStack:
+    def z_offset(self, dz: float) -> LayerStack:
         """Translates the z-coordinates of the layerstack."""
         layers = self.layers or {}
         for layer in layers.values():
@@ -566,7 +657,9 @@ class LayerStack(BaseModel):
         return self
 
 
-def get_component_with_derived_layers(component, layer_stack: LayerStack) -> Component:
+def get_component_with_derived_layers(
+    component: Component, layer_stack: LayerStack
+) -> Component:
     """Returns a component with derived layers.
 
     Args:
@@ -577,18 +670,16 @@ def get_component_with_derived_layers(component, layer_stack: LayerStack) -> Com
 
     component_derived = Component()
 
-    for layer_name, level in layer_stack.layers.items():
-        if isinstance(level.layer, LogicalLayer):
-            derived_layer_index = get_layer(level.layer.layer)
-        elif isinstance(level.layer, DerivedLayer):
-            if level.derived_layer is not None:
-                derived_layer_index = get_layer(level.derived_layer.layer)
+    for level in layer_stack.layers.values():
+        if level.derived_layer is None:
+            if isinstance(level.layer, LogicalLayer):
+                derived_layer_index = get_layer(level.layer.layer)
             else:
                 raise ValueError(
-                    f"Error at LayerLevel {layer_name}: derived_layer must be provided if the level's layer is a DerivedLayer"
+                    "If derived_layer is not provided, the LayerLevel layer must be a LogicalLayer"
                 )
         else:
-            raise ValueError("layer must be one of LogicalLayer or DerivedLayer")
+            derived_layer_index = get_layer(level.derived_layer.layer)
 
         shapes = level.layer.get_shapes(component=component)
         component_derived.shapes(derived_layer_index).insert(shapes)
@@ -601,47 +692,59 @@ if __name__ == "__main__":
     # For now, make regular layers trivial DerivedLayers
     # This might be automatable during LayerStack instantiation, or we could modify the Layer object in LayerMap too
 
-    from gdsfactory.generic_tech import LAYER
+    layer1 = LogicalLayer(layer=(1, 0))
+    layer2 = LogicalLayer(layer=(2, 0))
+    layer1_sized = LogicalLayer(layer=(1, 0)).sized(10000)
+    layer1_sized_asymmetric = LogicalLayer(layer=(1, 0)).sized(0, 50000)
 
-    layer1 = LogicalLayer(layer=(2, 0))
-    layer2 = LogicalLayer(layer=LAYER.WG)
+    layer3 = LogicalLayer(layer=(3, 0))
+    layer3_sequence = LogicalLayer(layer=(3, 0)).sized(2000, 2000).sized(-1000, -1000)
+    layer3_sequence_list = LogicalLayer(layer=(3, 0)).sized((2000, 2000))
+    layer3_sequence_lists = LogicalLayer(layer=(3, 0)).sized((0, 0), (5000, 1000))
 
     ls = LayerStack(
         layers={
             "layerlevel_layer1": LayerLevel(layer=layer1, thickness=10, zmin=0),
-            "layerlevel_layer2": LayerLevel(layer=layer2, thickness=10, zmin=10),
-            "layerlevel_and_layer": LayerLevel(
-                layer=layer1 & layer2,
-                thickness=10,
-                zmin=0,
-                derived_layer=LogicalLayer(layer=(3, 0)),
+            "layerlevel_layer1_sized": LayerLevel(
+                layer=layer1_sized, thickness=10, zmin=0
             ),
-            "layerlevel_xor_layer": LayerLevel(
-                layer=layer1 ^ layer2,
+            "layerlevel_layer1_asymmetric": LayerLevel(
+                layer=layer1_sized_asymmetric, thickness=10, zmin=0
+            ),
+            "layerlevel_layer1_to_layer2_derived": LayerLevel(
+                layer=layer1_sized, thickness=10, zmin=0, derived_layer=layer2
+            ),
+            "layerlevel_layer3": LayerLevel(layer=layer3, thickness=10, zmin=0),
+            "layer3_sequence": LayerLevel(
+                layer=layer3_sequence,
                 thickness=10,
                 zmin=0,
                 derived_layer=LogicalLayer(layer=(4, 0)),
             ),
-            "layerlevel_not_layer": LayerLevel(
-                layer=layer1 - layer2,
+            "layer3_sequence_list": LayerLevel(
+                layer=layer3_sequence_list,
                 thickness=10,
                 zmin=0,
                 derived_layer=LogicalLayer(layer=(5, 0)),
             ),
-            "layerlevel_or_layer": LayerLevel(
-                layer=layer1 | layer2,
+            "layer3_sequence_lists": LayerLevel(
+                layer=layer3_sequence_lists,
                 thickness=10,
                 zmin=0,
                 derived_layer=LogicalLayer(layer=(6, 0)),
             ),
-            "layerlevel_composed_layer": LayerLevel(
-                layer=layer1 - (layer1 & layer2),
-                thickness=10,
-                zmin=0,
-                derived_layer=LogicalLayer(layer=(7, 0)),
-            ),
         }
     )
+
+    # Test with simple component
+    import gdsfactory as gf
+
+    c = gf.Component()
+
+    rect1 = c << gf.components.rectangle(size=(10, 10), layer=(1, 0))
+    rect2 = c << gf.components.rectangle(size=(10, 10), layer=(3, 0))
+    rect2.dmove((30, 30))
+    # c.show()
 
     # import gdsfactory as gf
 
@@ -652,8 +755,8 @@ if __name__ == "__main__":
     # rect2.dmove((5, 5))
     # c.show()
 
-    # c = get_component_with_derived_layers(c, ls)
-    # c.show()
+    c = get_component_with_derived_layers(c, ls)
+    c.show()
 
-    s = ls.get_klayout_3d_script()
-    print(s)
+    # s = ls.get_klayout_3d_script()
+    # print(s)

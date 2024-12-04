@@ -9,6 +9,7 @@ from gdsfactory import Port
 from gdsfactory.component import Component
 from gdsfactory.difftest import difftest
 from gdsfactory.routing.route_bundle import route_bundle
+from gdsfactory.typings import AngleInDegrees, Delta
 
 
 def test_route_bundle(
@@ -45,17 +46,22 @@ def test_route_bundle(
 
         c = gf.Component("test_route_bundle")
         routes = route_bundle(
-            c, top_ports, bot_ports, start_straight_length=5, end_straight_length=10
+            c,
+            top_ports,
+            bot_ports,
+            start_straight_length=5,
+            end_straight_length=10,
+            cross_section="strip",
         )
         lengths = {i: route.length for i, route in enumerate(routes)}
         if data_regression:
-            data_regression.check(lengths)
+            data_regression.check(lengths)  # type: ignore
             difftest(c)
 
 
 @pytest.mark.parametrize("config", ["A", "C"])
 def test_connect_corner(
-    config: str, data_regression: DataRegressionFixture, check: bool = True, N=6
+    config: str, data_regression: DataRegressionFixture, check: bool = True, n: int = 6
 ) -> None:
     d = 10.0
     sep = 5.0
@@ -72,7 +78,7 @@ def test_connect_corner(
                 orientation=0,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_A_TL = [
@@ -83,7 +89,7 @@ def test_connect_corner(
                 orientation=180,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_A_BR = [
@@ -94,7 +100,7 @@ def test_connect_corner(
                 orientation=0,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_A_BL = [
@@ -105,7 +111,7 @@ def test_connect_corner(
                 orientation=180,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_A = [ports_A_TR, ports_A_TL, ports_A_BR, ports_A_BL]
@@ -118,7 +124,7 @@ def test_connect_corner(
                 orientation=90,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_B_TL = [
@@ -129,7 +135,7 @@ def test_connect_corner(
                 orientation=90,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_B_BR = [
@@ -140,7 +146,7 @@ def test_connect_corner(
                 orientation=270,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_B_BL = [
@@ -151,13 +157,13 @@ def test_connect_corner(
                 orientation=270,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_B = [ports_B_TR, ports_B_TL, ports_B_BR, ports_B_BL]
 
     elif config in {"C", "D"}:
-        a = N * sep + 2 * d
+        a = n * sep + 2 * d
         ports_A_TR = [
             Port(
                 f"A_TR_{i}",
@@ -166,7 +172,7 @@ def test_connect_corner(
                 orientation=0,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_A_TL = [
@@ -177,7 +183,7 @@ def test_connect_corner(
                 orientation=180,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_A_BR = [
@@ -188,7 +194,7 @@ def test_connect_corner(
                 orientation=0,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_A_BL = [
@@ -199,7 +205,7 @@ def test_connect_corner(
                 orientation=180,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_A = [ports_A_TR, ports_A_TL, ports_A_BR, ports_A_BL]
@@ -212,7 +218,7 @@ def test_connect_corner(
                 orientation=90,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_B_TL = [
@@ -223,7 +229,7 @@ def test_connect_corner(
                 orientation=90,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_B_BR = [
@@ -234,7 +240,7 @@ def test_connect_corner(
                 orientation=270,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_B_BL = [
@@ -245,35 +251,35 @@ def test_connect_corner(
                 orientation=270,
                 layer=layer,
             )
-            for i in range(N)
+            for i in range(n)
         ]
 
         ports_B = [ports_B_TR, ports_B_TL, ports_B_BR, ports_B_BL]
 
     lengths = {}
     i = 0
-    for ports1, ports2 in zip(ports_A, ports_B):
+    for ports1, ports2 in zip(ports_A, ports_B):  # type: ignore
         if config in {"A", "C"}:
-            routes = route_bundle(c, ports1, ports2)
+            routes = route_bundle(c, ports1, ports2, cross_section="strip")
             for route in routes:
                 lengths[i] = route.length
                 i += 1
 
         elif config in {"B", "D"}:
-            routes = route_bundle(c, ports2, ports1)
+            routes = route_bundle(c, ports2, ports1, cross_section="strip")
             for route in routes:
                 lengths[i] = route.length
                 i += 1
 
     if check:
-        data_regression.check(lengths)
+        data_regression.check(lengths)  # type: ignore
         difftest(c)
 
 
 def test_route_bundle_udirect(
     data_regression: DataRegressionFixture,
     check: bool = True,
-    dy: float = 200,
+    dy: Delta = 200,
     angle: float = 270,
 ) -> None:
     xs1 = [-100, -90, -80, -55, -35, 24, 0] + [200, 210, 240]
@@ -336,17 +342,21 @@ def test_route_bundle_udirect(
         bend=gf.components.bend_circular,
         end_straight_length=30,
         sort_ports=True,
+        cross_section="strip",
     )
     lengths = {i: route.length for i, route in enumerate(routes)}
 
     if check:
-        data_regression.check(lengths)
+        data_regression.check(lengths)  # type: ignore
         difftest(c)
 
 
 @pytest.mark.parametrize("angle", [0, 90, 180, 270])
 def test_route_bundle_u_indirect(
-    data_regression: DataRegressionFixture, angle: int, check: bool = True, dy=-200
+    data_regression: DataRegressionFixture,
+    angle: AngleInDegrees,
+    check: bool = True,
+    dy: Delta = -200,
 ) -> None:
     xs1 = [-100, -90, -80, -55, -35] + [200, 210, 240]
 
@@ -402,10 +412,11 @@ def test_route_bundle_u_indirect(
         end_straight_length=15,
         start_straight_length=5,
         radius=5,
+        cross_section="strip",
     )
     lengths = {i: route.length for i, route in enumerate(routes)}
     if check:
-        data_regression.check(lengths)
+        data_regression.check(lengths)  # type: ignore
         difftest(c)
 
 
@@ -434,11 +445,11 @@ def test_facing_ports(
     ]
 
     c = gf.Component("test_facing_ports")
-    routes = route_bundle(c, ports1, ports2)
+    routes = route_bundle(c, ports1, ports2, cross_section="strip")
 
     lengths = {i: route.length for i, route in enumerate(routes)}
     if check:
-        data_regression.check(lengths)
+        data_regression.check(lengths)  # type: ignore
         difftest(c)
 
 
@@ -459,7 +470,28 @@ def test_route_bundle_small() -> None:
         assert np.isclose(route.length, 74500), route.length
 
 
+def test_route_bundle_width() -> None:
+    top = gf.Component()
+    wg1 = top << gf.components.straight()
+    wg2 = top << gf.components.straight()
+    wg2.movey(50)
+    wg3 = top << gf.components.straight()
+    wg3.move((50, 20))
+    wg4 = top << gf.components.straight()
+    wg4.move((50, 70))
+
+    route = gf.routing.route_bundle(
+        top,
+        [wg1["o2"], wg2["o2"]],
+        [wg3["o1"], wg4["o1"]],
+        layer=(1, 0),
+        route_width=0.5,
+    )
+    assert route[0].length == 20000, route[0].length
+
+
 if __name__ == "__main__":
-    test_route_bundle_small()
+    test_route_bundle_width()
+    # test_route_bundle_small()
     # test_route_bundle_udirect(None, check=False)
     # test_route_bundle(None)

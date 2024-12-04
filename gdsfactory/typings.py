@@ -23,20 +23,12 @@ from __future__ import annotations
 
 import dataclasses
 import pathlib
-from collections.abc import Callable, Iterable
-from typing import (
-    Any,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    ParamSpec,
-    Tuple,
-    Union,
-)
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any, Generator, Literal, ParamSpec, TypeAlias, TypeVar
 
 import kfactory as kf
 import numpy as np
+import numpy.typing as npt
 from kfactory.kcell import LayerEnum
 
 from gdsfactory.component import (
@@ -45,8 +37,10 @@ from gdsfactory.component import (
     ComponentBase,
     ComponentReference,
 )
-from gdsfactory.cross_section import CrossSection, Section, Transition, WidthTypes
-from gdsfactory.port import Port
+from gdsfactory.cross_section import (  # type: ignore[attr-defined]
+    CrossSection,
+    Transition,
+)
 from gdsfactory.technology import LayerLevel, LayerMap, LayerStack, LayerViews
 
 STEP_DIRECTIVES = {
@@ -83,11 +77,11 @@ class Step:
 
     x: float | None = None
     y: float | None = None
-    dx: float | None = None
-    dy: float | None = None
+    dx: Delta | None = None
+    dy: Delta | None = None
 
 
-Anchor = Literal[
+Anchor: TypeAlias = Literal[
     "ce",
     "cw",
     "nc",
@@ -99,101 +93,140 @@ Anchor = Literal[
     "center",
     "cc",
 ]
-Axis = Literal["x", "y"]
-NSEW = Literal["N", "S", "E", "W"]
+Axis: TypeAlias = Literal["x", "y"]
+NSEW: TypeAlias = Literal["N", "S", "E", "W"]
+WidthTypes: TypeAlias = Literal["sine", "linear", "parabolic"]
 
+Float2: TypeAlias = tuple[float, float]
+Float3: TypeAlias = tuple[float, float, float]
+Floats: TypeAlias = Sequence[float]
+Strs: TypeAlias = Sequence[str]
+Int2: TypeAlias = tuple[int, int]
+Int3: TypeAlias = tuple[int, int, int]
+Ints: TypeAlias = tuple[int, ...] | list[int]
 
-Float2 = tuple[float, float]
-Float3 = tuple[float, float, float]
-Floats = tuple[float, ...]
-Strs = tuple[str, ...]
-Int2 = tuple[int, int]
-Int3 = tuple[int, int, int]
-Ints = tuple[int, ...]
+BoundingBox: TypeAlias = tuple[float, float, float, float]
+BoundingBoxes: TypeAlias = Sequence[BoundingBox]
+Size: TypeAlias = tuple[float, float]
+Spacing: TypeAlias = tuple[float, float]
+Radius: TypeAlias = float
 
-Layer = tuple[int, int]
-Layers = tuple[Layer, ...]
-LayerSpec = LayerEnum | str | tuple[int, int]
+Delta: TypeAlias = float
+AngleInDegrees: TypeAlias = float
 
-LayerSpecs = list[LayerSpec] | tuple[LayerSpec, ...]
+Layer: TypeAlias = tuple[int, int]
+Layers: TypeAlias = Sequence[Layer]
+LayerSpec: TypeAlias = LayerEnum | str | tuple[int, int]
+LayerSpecs: TypeAlias = Sequence[LayerSpec]
+
+AnyComponent: TypeAlias = Component | ComponentAllAngle
+AnyComponentT = TypeVar("AnyComponentT", bound=AnyComponent)
+AnyComponentFactory: TypeAlias = Callable[..., AnyComponent]
+AnyComponentPostProcess: TypeAlias = Callable[[AnyComponent], None]
 
 ComponentParams = ParamSpec("ComponentParams")
-ComponentFactory = Callable[..., Component]
-ComponentFactoryDict = dict[str, ComponentFactory]
-PathType = str | pathlib.Path
-PathTypes = tuple[PathType, ...]
-Metadata = dict[str, int | float | str]
-PostProcess = tuple[Callable[[Component], None], ...]
+ComponentFactory: TypeAlias = Callable[..., Component]
+ComponentAllAngleFactory: TypeAlias = Callable[..., ComponentAllAngle]
+ComponentBaseFactory: TypeAlias = Callable[..., ComponentBase]
+ComponentFactoryDict: TypeAlias = dict[str, ComponentFactory]
 
+PathType: TypeAlias = str | pathlib.Path
+PathTypes: TypeAlias = Sequence[PathType]
+Metadata: TypeAlias = dict[str, int | float | str]
+PostProcess: TypeAlias = Callable[[Component], None]
+PostProcesses: TypeAlias = Sequence[PostProcess]
+MaterialSpec: TypeAlias = str | float | tuple[float, float] | Callable[..., Any]
 
-MaterialSpec = str | float | tuple[float, float] | Callable
+Instance: TypeAlias = ComponentReference
+ComponentOrPath: TypeAlias = PathType | Component
+ComponentOrReference: TypeAlias = Component | ComponentReference
+NameToFunctionDict: TypeAlias = dict[str, ComponentFactory]
+Number: TypeAlias = float | int
+Coordinate: TypeAlias = tuple[float, float]
+Coordinates: TypeAlias = Sequence[Coordinate]
+CrossSectionFactory: TypeAlias = Callable[..., CrossSection]
+CrossSectionOrFactory: TypeAlias = CrossSection | Callable[..., CrossSection]
 
-ComponentOrPath = PathType | Component
-ComponentOrReference = Component | ComponentReference
-NameToFunctionDict = dict[str, ComponentFactory]
-Number = float | int
-Coordinate = tuple[float, float]
-Coordinates = tuple[Coordinate, ...] | list[Coordinate]
-CrossSectionFactory = Callable[..., CrossSection]
-TransitionFactory = Callable[..., Transition]
-CrossSectionOrFactory = CrossSection | Callable[..., CrossSection]
-PortSymmetries = dict[str, list[str]]
-PortsDict = dict[str, Port]
-PortsList = dict[str, Port]
+WidthFunction: TypeAlias = Callable[..., npt.NDArray[np.float64]]
+OffsetFunction: TypeAlias = Callable[..., npt.NDArray[np.float64]]
 
-Sparameters = dict[str, np.ndarray]
+Port: TypeAlias = kf.Port
+PortFactory: TypeAlias = Callable[..., Port]
+PortsFactory: TypeAlias = Callable[..., Sequence[Port]]
+PortSymmetries: TypeAlias = dict[str, Sequence[str]]
+PortsDict: TypeAlias = dict[str, Port]
+Ports: TypeAlias = kf.Ports | Sequence[Port] | Iterable[Port]
+SelectPorts: TypeAlias = Callable[..., Sequence[Port]]
 
-ComponentSpec = (
-    str | ComponentFactory | dict[str, Any] | kf.KCell
-)  # PCell function, function name, dict or Component
+PortType: TypeAlias = str
+PortName: TypeAlias = str
 
-ComponentSpecs = tuple[ComponentSpec, ...]
-ComponentFactories = tuple[ComponentFactory, ...]
+PortTypes: TypeAlias = Sequence[PortType]
+PortNames: TypeAlias = Sequence[PortName]
 
-ComponentSpecOrList = ComponentSpec | list[ComponentSpec]
-CellSpec = (
-    str | ComponentFactory | dict[str, Any]
-)  # PCell function, function name or dict
+Sparameters: TypeAlias = dict[str, npt.NDArray[np.float64]]
 
-ComponentSpecDict = dict[str, ComponentSpec]
-CrossSectionSpec = (
-    CrossSectionFactory | CrossSection | dict[str, Any] | str | Transition
+ComponentSpec: TypeAlias = str | ComponentFactory | dict[str, Any] | kf.KCell
+ComponentSpecOrComponent: TypeAlias = (
+    str | ComponentFactory | dict[str, Any] | kf.KCell | Component
 )
-CrossSectionSpecs = tuple[CrossSectionSpec, ...]
 
-MultiCrossSectionAngleSpec = list[tuple[CrossSectionSpec, tuple[int, ...]]]
+ComponentSpecs: TypeAlias = Sequence[ComponentSpec]
+ComponentSpecsOrComponents: TypeAlias = Sequence[ComponentSpecOrComponent]
+ComponentFactories: TypeAlias = Sequence[ComponentFactory]
+
+ComponentSpecOrList: TypeAlias = ComponentSpec | list[ComponentSpec]
+CellSpec: TypeAlias = (
+    str | ComponentFactory | dict[str, Any]  # PCell function, function name or dict
+)
+
+ComponentSpecDict: TypeAlias = dict[str, ComponentSpec]
+CrossSectionSpec: TypeAlias = CrossSectionFactory | CrossSection | dict[str, Any] | str
+CrossSectionSpecs: TypeAlias = tuple[CrossSectionSpec, ...]
+
+MultiCrossSectionAngleSpec: TypeAlias = list[tuple[CrossSectionSpec, tuple[int, ...]]]
 
 
-ConductorConductorName = tuple[str, str]
-ConductorViaConductorName = tuple[str, str, str] | tuple[str, str]
-ConnectivitySpec = ConductorConductorName | ConductorViaConductorName
+ConductorConductorName: TypeAlias = tuple[str, str]
+ConductorViaConductorName: TypeAlias = tuple[str, str, str] | tuple[str, str]
+ConnectivitySpec: TypeAlias = ConductorConductorName | ConductorViaConductorName
+
+Route: TypeAlias = (
+    kf.routing.generic.ManhattanRoute | kf.routing.aa.optical.OpticalAllAngleRoute
+)
+RoutingStrategy: TypeAlias = Callable[..., Sequence[Route]]
+RoutingStrategies: TypeAlias = dict[str, RoutingStrategy]
 
 
-class TypedArray(np.ndarray):
+class TypedArray(np.ndarray[Any, np.dtype[Any]]):
     """based on https://github.com/samuelcolvin/pydantic/issues/380."""
 
     @classmethod
-    def __get_validators__(cls):
+    def __get_validators__(
+        cls,
+    ) -> Generator[Callable[[Any, Any], npt.NDArray[np.float64]], Any, None]:
         yield cls.validate_type
 
     @classmethod
-    def validate_type(cls, val, _info):
-        return np.array(val, dtype=cls.inner_type)
+    def validate_type(cls, val: Any, _info: Any) -> npt.NDArray[np.float64]:
+        return np.array(val, dtype=cls.inner_type)  # type: ignore
 
 
 class ArrayMeta(type):
-    def __getitem__(self, t):
+    def __getitem__(cls, t: np.dtype[Any]) -> type[npt.NDArray[Any]]:
         return type("Array", (TypedArray,), {"inner_type": t})
 
 
-class Array(np.ndarray, metaclass=ArrayMeta):
+class Array(np.ndarray[Any, np.dtype[Any]], metaclass=ArrayMeta):
     pass
 
 
 __all__ = (
+    "AngleInDegrees",
     "Any",
-    "Callable",
-    "Component",
+    "AnyComponent",
+    "AnyComponentFactory",
+    "AnyComponentT",
     "ComponentAllAngle",
     "ComponentBase",
     "ComponentFactory",
@@ -207,15 +240,17 @@ __all__ = (
     "CrossSectionFactory",
     "CrossSectionOrFactory",
     "CrossSectionSpec",
+    "Delta",
     "Float2",
     "Float3",
     "Floats",
+    "Instance",
     "Int2",
     "Int3",
     "Ints",
     "Layer",
-    "LayerMap",
     "LayerLevel",
+    "LayerMap",
     "LayerSpec",
     "LayerSpecs",
     "LayerStack",
@@ -224,15 +259,21 @@ __all__ = (
     "MultiCrossSectionAngleSpec",
     "NameToFunctionDict",
     "Number",
-    "Optional",
     "PathType",
     "PathTypes",
-    "Section",
+    "Port",
+    "PortName",
+    "PortNames",
+    "PortType",
+    "PortTypes",
+    "Ports",
+    "PostProcesses",
+    "Radius",
+    "RoutingStrategies",
+    "SelectPorts",
+    "Size",
+    "Spacing",
     "Strs",
+    "Transition",
     "WidthTypes",
-    "Union",
-    "List",
-    "Tuple",
-    "Dict",
-    "Iterable",
 )

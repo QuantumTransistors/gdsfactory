@@ -3,11 +3,20 @@ help:
 	@echo 'make test:             Run tests with pytest'
 	@echo 'make test-force:       Rebuilds regression test'
 
+uv:
+	curl -LsSf https://astral.sh/uv/0.4.30/install.sh | sh
+
 install:
+	uv venv --python 3.11
+	uv sync --extra docs --extra dev
+
+dev:
 	pip install -e .[dev,docs] pre-commit
-	# pip install git+https://github.com/gdsfactory/kfactory --force-reinstall
 	gf install-klayout-genericpdk
 	gf install-git-diff
+
+install-kfactory-dev:
+	uv pip install git+https://github.com/gdsfactory/kfactory --force-reinstall
 
 update-pre:
 	pre-commit autoupdate
@@ -22,10 +31,13 @@ test: test-data-gds
 	pytest -s
 
 test-force:
-	pytest --force-regen -s
+	run pytest --force-regen -s
+
+uv-test: test-data-gds
+	uv run pytest -s
 
 cov:
-	pytest --cov=gdsfactory
+	uv run pytest --cov=gdsfactory
 
 docker-debug:
 	docker run -it joamatab/gdsfactory sh
@@ -57,8 +69,8 @@ autopep8:
 	autopep8 --in-place --aggressive --aggressive **/*.py
 
 docs:
-	python docs/write_cells.py
-	jb build docs
+	uv run python docs/write_cells.py
+	uv run jb build docs
 
 git-rm-merged:
 	git branch -D `git branch --merged | grep -v \* | xargs`

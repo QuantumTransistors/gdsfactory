@@ -3,18 +3,18 @@ from __future__ import annotations
 from functools import partial
 
 import gdsfactory as gf
-from gdsfactory.component import Component, Instance, container
+from gdsfactory.component import Component, ComponentAllAngle, Instance, container
 from gdsfactory.typings import ComponentSpec, LayerSpec
 
 
 def get_padding_points(
-    component: Component | Instance,
+    component: Component | Instance | ComponentAllAngle,
     default: float = 50.0,
     top: float | None = None,
     bottom: float | None = None,
     right: float | None = None,
     left: float | None = None,
-) -> list[float]:
+) -> list[list[float]]:
     """Returns padding points for a component outline.
 
     Args:
@@ -41,16 +41,17 @@ def get_padding_points(
 def add_padding(
     component: ComponentSpec = "mmi2x2",
     layers: tuple[LayerSpec, ...] = ("PADDING",),
-    **kwargs,
+    default: float = 50.0,
+    top: float | None = None,
+    bottom: float | None = None,
+    right: float | None = None,
+    left: float | None = None,
 ) -> Component:
     """Adds padding layers to component. Returns same component.
 
     Args:
         component: to add padding.
         layers: list of layers.
-        kwargs: padding in um.
-
-    Keyword Args:
         default: default padding.
         top: north padding in um.
         bottom: south padding in um.
@@ -59,7 +60,14 @@ def add_padding(
     """
     component = gf.get_component(component)
 
-    points = get_padding_points(component, **kwargs)
+    points = get_padding_points(
+        component,
+        default=default,
+        top=top,
+        bottom=bottom,
+        right=right,
+        left=left,
+    )
     for layer in layers:
         component.add_polygon(points, layer=layer)
     return component

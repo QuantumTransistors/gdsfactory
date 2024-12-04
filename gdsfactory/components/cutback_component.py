@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from functools import partial
+from typing import Any
 
 import gdsfactory as gf
 from gdsfactory.component import Component
 from gdsfactory.components.bend_euler import bend_euler180
 from gdsfactory.components.component_sequence import component_sequence
-from gdsfactory.components.straight import straight
-from gdsfactory.components.taper import taper
+from gdsfactory.components.straight import straight as straight_function
 from gdsfactory.components.taper_from_csv import taper_0p5_to_3_l36
 from gdsfactory.typings import ComponentSpec, CrossSectionSpec
 
@@ -25,8 +25,9 @@ def cutback_component(
     mirror2: bool = False,
     straight_length: float | None = None,
     straight_length_pair: float | None = None,
+    straight: ComponentSpec = straight_function,
     cross_section: CrossSectionSpec = "strip",
-    **kwargs,
+    **kwargs: Any,
 ) -> Component:
     """Returns a daisy chain of components for measuring their loss.
 
@@ -45,15 +46,17 @@ def cutback_component(
         straight_length: length of the straight section between cutbacks.
         straight_length_pair: length of the straight section between each component pair.
         cross_section: specification (CrossSection, string or dict).
+        straight: straight spec.
         kwargs: component settings.
     """
     xs = gf.get_cross_section(cross_section)
 
     component = gf.get_component(component, **kwargs)
     bendu = gf.get_component(bend180, cross_section=xs)
-    straight_component = straight(
-        length=straight_length or xs.radius * 2, cross_section=xs
-    )
+
+    straight_length = xs.radius * 2 if straight_length is None else straight_length
+    straight_component = straight(length=straight_length, cross_section=xs)
+
     straight_pair = straight(length=straight_length_pair or 0, cross_section=xs)
 
     # Define a map between symbols and (component, input port, output port)
@@ -95,12 +98,7 @@ def cutback_component(
     return c
 
 
-# straight_wide = partial(straight, width=3, length=20)
-# bend180_wide = partial(bend_euler180, width=3)
-component_flipped = partial(taper, width2=0.5, width1=3)
-straight_long = partial(straight, length=20)
 cutback_component_mirror = partial(cutback_component, mirror=True)
-
 
 if __name__ == "__main__":
     c = cutback_component()

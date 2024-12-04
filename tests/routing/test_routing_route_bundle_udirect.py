@@ -7,6 +7,7 @@ from pytest_regressions.data_regression import DataRegressionFixture
 
 import gdsfactory as gf
 from gdsfactory import Component, Port
+from gdsfactory.typings import AngleInDegrees, Delta, Layer
 
 
 def test_route_bundle_udirect_pads(
@@ -29,7 +30,9 @@ def test_route_bundle_udirect_pads(
 
     pbports.reverse()
 
-    routes = gf.routing.route_bundle_electrical(c, pbports, ptports, radius=5)
+    routes = gf.routing.route_bundle_electrical(
+        c, pbports, ptports, radius=5, cross_section="metal_routing"
+    )
 
     lengths = {}
     for i, route in enumerate(routes):
@@ -42,9 +45,9 @@ def test_route_bundle_udirect_pads(
 def test_route_connect_bundle_udirect(
     data_regression: DataRegressionFixture,
     check: bool = True,
-    dy=200,
-    orientation=270,
-    layer=(1, 0),
+    dy: Delta = 200,
+    orientation: AngleInDegrees = 270,
+    layer: Layer = (1, 0),
 ) -> None:
     xs1 = [-100, -90, -80, -55, -35, 24, 0] + [200, 210, 240]
     axis = "X" if orientation in [0, 180] else "Y"
@@ -98,17 +101,18 @@ def test_route_connect_bundle_udirect(
             for i in range(N)
         ]
 
-    c = Component()
-    routes = gf.routing.route_bundle(
-        c,
-        ports1,
-        ports2,
-        radius=10.0,
-        sort_ports=True,
-        separation=10,
-    )
-    lengths = {i: route.length for i, route in enumerate(routes)}
     if check:
+        c = Component()
+        routes = gf.routing.route_bundle(
+            c,
+            ports1,
+            ports2,
+            radius=10.0,
+            sort_ports=True,
+            separation=10,
+            cross_section="strip",
+        )
+        lengths = {i: route.length for i, route in enumerate(routes)}
         data_regression.check(lengths)
 
 

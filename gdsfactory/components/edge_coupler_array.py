@@ -8,7 +8,13 @@ from gdsfactory.components.extension import extend_ports
 from gdsfactory.components.taper import taper
 from gdsfactory.typings import ComponentSpec, CrossSectionSpec, Float2
 
-edge_coupler_silicon = partial(taper, width2=0.2, length=100, with_two_ports=True)
+edge_coupler_silicon = partial(
+    taper,
+    width2=0.2,
+    length=100,
+    with_two_ports=True,
+    port_types=("optical", "edge_coupler"),
+)
 
 
 @gf.cell
@@ -109,7 +115,7 @@ def edge_coupler_array_with_loopback(
     ec_ref = c << ec
     p1 = ec_ref.ports["o1"]
     p2 = ec_ref.ports["o2"]
-    p3 = ec_ref.ports[f"o{n-1}"]
+    p3 = ec_ref.ports[f"o{n - 1}"]
     p4 = ec_ref.ports[f"o{n}"]
 
     gf.routing.route_single(
@@ -137,7 +143,7 @@ def edge_coupler_array_with_loopback(
 
 if __name__ == "__main__":
     # c = edge_coupler_array()
-    c = edge_coupler_array_with_loopback()
+    c = edge_coupler_silicon()
     # c = edge_coupler_array_with_loopback(text_rotation=90)
     # c = edge_coupler_silicon()
     # c = edge_coupler_array(x_reflection=False)

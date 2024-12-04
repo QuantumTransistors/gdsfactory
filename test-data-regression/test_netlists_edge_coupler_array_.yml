@@ -8,12 +8,13 @@ instances:
     settings:
       cross_section: strip
       length: 100
+      port: null
       port_names:
       - o1
       - o2
       port_types:
       - optical
-      - optical
+      - edge_coupler
       width1: 0.5
       width2: 0.2
       with_bbox: true
@@ -27,12 +28,13 @@ instances:
     settings:
       cross_section: strip
       length: 100
+      port: null
       port_names:
       - o1
       - o2
       port_types:
       - optical
-      - optical
+      - edge_coupler
       width1: 0.5
       width2: 0.2
       with_bbox: true
@@ -46,12 +48,13 @@ instances:
     settings:
       cross_section: strip
       length: 100
+      port: null
       port_names:
       - o1
       - o2
       port_types:
       - optical
-      - optical
+      - edge_coupler
       width1: 0.5
       width2: 0.2
       with_bbox: true
@@ -65,12 +68,13 @@ instances:
     settings:
       cross_section: strip
       length: 100
+      port: null
       port_names:
       - o1
       - o2
       port_types:
       - optical
-      - optical
+      - edge_coupler
       width1: 0.5
       width2: 0.2
       with_bbox: true
@@ -84,12 +88,13 @@ instances:
     settings:
       cross_section: strip
       length: 100
+      port: null
       port_names:
       - o1
       - o2
       port_types:
       - optical
-      - optical
+      - edge_coupler
       width1: 0.5
       width2: 0.2
       with_bbox: true
@@ -101,6 +106,7 @@ instances:
       font: rectangular_font
       justify: left
       layer: WG
+      layers: null
       position:
       - 0
       - 0
@@ -113,6 +119,7 @@ instances:
       font: rectangular_font
       justify: left
       layer: WG
+      layers: null
       position:
       - 0
       - 0
@@ -125,6 +132,7 @@ instances:
       font: rectangular_font
       justify: left
       layer: WG
+      layers: null
       position:
       - 0
       - 0
@@ -137,6 +145,7 @@ instances:
       font: rectangular_font
       justify: left
       layer: WG
+      layers: null
       position:
       - 0
       - 0
@@ -149,6 +158,7 @@ instances:
       font: rectangular_font
       justify: left
       layer: WG
+      layers: null
       position:
       - 0
       - 0
@@ -209,12 +219,7 @@ placements:
     y: 528
 ports:
   o1: ec_0,o1
-  o10: ec_0,o2
   o2: ec_1,o1
   o3: ec_2,o1
   o4: ec_3,o1
   o5: ec_4,o1
-  o6: ec_4,o2
-  o7: ec_3,o2
-  o8: ec_2,o2
-  o9: ec_1,o2

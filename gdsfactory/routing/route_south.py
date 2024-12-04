@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-
 import numpy as np
 from kfactory.routing.generic import ManhattanRoute
 
@@ -9,12 +7,18 @@ import gdsfactory as gf
 from gdsfactory.component import Component, ComponentReference
 from gdsfactory.components.bend_euler import bend_euler
 from gdsfactory.components.straight import straight as straight_function
-from gdsfactory.components.taper import taper as taper_function
-from gdsfactory.cross_section import strip
+from gdsfactory.cross_section import CrossSection, strip
 from gdsfactory.port import Port, select_ports_optical
+from gdsfactory.routing.auto_taper import add_auto_tapers
 from gdsfactory.routing.route_single import route_single
 from gdsfactory.routing.utils import direction_ports_from_list_ports
-from gdsfactory.typings import ComponentSpec, CrossSectionSpec, Strs
+from gdsfactory.typings import (
+    ComponentSpec,
+    CrossSectionSpec,
+    Radius,
+    SelectPorts,
+    Strs,
+)
 
 
 def route_south(
@@ -27,13 +31,13 @@ def route_south(
     gc_port_name: str = "o1",
     bend: ComponentSpec = bend_euler,
     straight: ComponentSpec = straight_function,
-    taper: ComponentSpec | None = taper_function,
-    select_ports: Callable = select_ports_optical,
+    select_ports: SelectPorts = select_ports_optical,
     port_names: Strs | None = None,
     cross_section: CrossSectionSpec = strip,
     start_straight_length: float = 0.5,
     port_type: str | None = None,
     allow_width_mismatch: bool = False,
+    auto_taper: bool = True,
 ) -> list[ManhattanRoute]:
     """Places routes to route a component ports to the south.
 
@@ -50,13 +54,13 @@ def route_south(
         gc_port_name: grating coupler port name. Used only if io_gratings_lines is supplied.
         bend: spec.
         straight: spec.
-        taper: spec.
         select_ports: function to select_ports.
         port_names: optional port names. Overrides select_ports.
         cross_section: cross_section spec.
         start_straight_length: in um.
         port_type: optical or electrical.
         allow_width_mismatch: allow width mismatch.
+        auto_taper: auto taper.
 
     Works well if the component looks roughly like a rectangular box with:
         north ports on the north of the box.
@@ -96,6 +100,9 @@ def route_south(
         optical_ports = select_ports(component.ports)
         optical_ports = [p for p in optical_ports if p.name not in excluded_ports]
 
+    if auto_taper:
+        optical_ports = add_auto_tapers(c, optical_ports, cross_section)
+
     port_type = port_type or optical_ports[0].port_type
     bend90 = bend(cross_section=cross_section) if callable(bend) else bend
     bend90 = gf.get_component(bend90)
@@ -108,10 +115,10 @@ def route_south(
     conn_params = dict(
         bend=bend,
         straight=straight,
-        taper=taper,
         cross_section=cross_section,
         port_type=port_type,
         allow_width_mismatch=allow_width_mismatch,
+        auto_taper=False,
     )
 
     # Used to avoid crossing between straights in special cases
@@ -134,18 +141,23 @@ def route_south(
     north_start.reverse()  # Sort right to left
     ordered_ports = north_start + west_ports + south_ports + east_ports + north_finish
 
-    def get_index_port_closest_to_x(x, list_ports):
+    def get_index_port_closest_to_x(
+        x: float, component_references: list[ComponentReference]
+    ) -> np.intp:
         return np.array(
-            [abs(x - p.ports[gc_port_name].dx) for p in list_ports]
+            [abs(x - p.ports[gc_port_name].dx) for p in component_references]
         ).argmin()
 
-    def gen_port_from_port(x, y, p, cross_section):
+    def gen_port_from_port(
+        x: float, y: float, p: Port, cross_section: CrossSection
+    ) -> Port:
         return Port(
             name=p.name,
             center=(x, y),
             orientation=90.0,
             width=p.dwidth,
             layer=cross_section.layer,
+            port_type=p.port_type,
         )
 
     west_ports.reverse()
@@ -282,7 +294,7 @@ if __name__ == "__main__":
     c = gf.Component()
 
     @gf.cell
-    def mzi_with_bend(radius=10):
+    def mzi_with_bend(radius: Radius = 10) -> Component:
         c = gf.Component()
         bend = c.add_ref(gf.components.bend_euler(radius=radius))
         mzi = c.add_ref(gf.components.mzi())
@@ -295,7 +307,9 @@ if __name__ == "__main__":
     component = mzi_with_bend()
     component = gf.components.mmi2x2()
     component = gf.components.nxn(north=4, south=2, west=2, east=2)
+    component = gf.components.straight(length=10, width=2)
     ref = c << component
-    r = route_south(c, ref, optical_routing_type=1, start_straight_length=0)
+    # r = route_south(c, ref, optical_routing_type=1, start_straight_length=0)
+    r = route_south(c, ref, auto_taper=True)
     # print(r.lengths)
     c.show()

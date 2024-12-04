@@ -1,4 +1,4 @@
-# GDSFactory 8.8.7
+# GDSFactory 8.22.0
 
 [![docs](https://github.com/gdsfactory/gdsfactory/actions/workflows/pages.yml/badge.svg)](https://gdsfactory.github.io/gdsfactory/)
 [![PyPI](https://img.shields.io/pypi/v/gdsfactory)](https://pypi.org/project/gdsfactory/)
@@ -7,7 +7,6 @@
 [![MIT](https://img.shields.io/github/license/gdsfactory/gdsfactory)](https://choosealicense.com/licenses/mit/)
 [![codecov](https://img.shields.io/codecov/c/github/gdsfactory/gdsfactory)](https://codecov.io/gh/gdsfactory/gdsfactory/tree/main/gdsfactory)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/gdsfactory/binder-sandbox/HEAD)
-[![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gdsfactory/gdsfactory-photonics-training)
 
 > 🚀 **Notice: Major Release**
 >
@@ -20,12 +19,26 @@ GDSFactory is a powerful Python library for designing a wide range of complex sy
 
 As input you write python code, as an output GDSFactory creates CAD files (GDS, OASIS, STL, GERBER).
 
-![cad](https://i.imgur.com/7Vc9cnn.png)
+![cad](https://i.imgur.com/3cUa2GV.png)
+
+```python
+import gdsfactory as gf
+
+c = gf.Component()
+ref1 = c.add_ref(gf.components.rectangle(size=(10, 10), layer=(1, 0)))
+ref2 = c.add_ref(gf.components.text("Hello", size=10, layer=(2, 0)))
+ref3 = c.add_ref(gf.components.text("world", size=10, layer=(2, 0)))
+
+ref1.xmax = ref2.xmin - 5
+ref3.xmin = ref2.xmax + 2
+ref3.rotate(30)
+c.show()
+```
 
 Highlights:
 
 - +2M downloads
-- +65 Contributors
+- +70 Contributors
 - +15 PDKs available
 
 ![workflow](https://i.imgur.com/KyavbHh.png)
@@ -59,6 +72,7 @@ Numerous foundries offer GDSFactory PDKs that are accessible under an NDA. To ga
 Coming soon:
 
 - Ligentec PDK
+- Lightium PDK
 
 There are also open source PDKs available without an NDA:
 
@@ -76,7 +90,6 @@ There are also open source PDKs available without an NDA:
 - [![Video Tutorials](https://img.shields.io/badge/youtube-Video_Tutorials-red.svg?logo=youtube)](https://www.youtube.com/@gdsfactory/playlists)
 - [![Join the chat at https://gitter.im/gdsfactory-dev/community](https://badges.gitter.im/gdsfactory-dev/community.svg)](https://gitter.im/gdsfactory-dev/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 - See announcements on [GitHub](https://github.com/gdsfactory/gdsfactory/discussions/547), [google-groups](https://groups.google.com/g/gdsfactory) or [LinkedIn](https://www.linkedin.com/company/gdsfactory)
-- [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/gdsfactory/gdsfactory-photonics-training)
 - [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=250169028)
 - [PIC training](https://gdsfactory.github.io/gdsfactory-photonics-training/)
 - Online course [UBCx: Silicon Photonics Design, Fabrication and Data Analysis](https://www.edx.org/learn/engineering/university-of-british-columbia-silicon-photonics-design-fabrication-and-data-ana), where students can use GDSFactory to create a design, have it fabricated, and tested.

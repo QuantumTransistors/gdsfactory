@@ -1,13 +1,13 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-yaml
         exclude: ^(conda\.recipe/meta\.yaml|conda_build/templates/.*\.yaml|docs/click/meta\.yaml|conda/meta\.yaml|conda/construct.yaml|.*\.pic\.yml|conda/constructor/Miniforge3/construct.yaml)
       - id: end-of-file-fixer
       - id: trailing-whitespace
   - repo: https://github.com/kynan/nbstripout
-    rev: 0.7.1
+    rev: 0.8.1
     hooks:
       - id: nbstripout
         files: ".ipynb"
@@ -18,10 +18,10 @@ repos:
         additional_dependencies:
           - tomli
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.6.3"
+    rev: "v0.8.1"
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
+        args: [--fix, --exit-non-zero-on-fix, --config=pyproject.toml]
       - id: ruff-format
   - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
     rev: v2.14.0
@@ -37,11 +37,24 @@ repos:
         exclude: .github/.*
         # args: [--extensions, "j2,yml,yaml", --ignore, jinja-statements-delimiter, jinja-statements-indentation]
   - repo: https://github.com/google/yamlfmt
-    rev: v0.13.0
+    rev: v0.14.0
     hooks:
       - id: yamlfmt
         exclude: ".*.tests*|.*.pic.yml"
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.1
+    rev: v1.7.4
     hooks:
       - id: actionlint
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    # - repo: https://github.com/pre-commit/mirrors-mypy
+    #   rev: v1.13.0
+    #   hooks:
+    #     - id: mypy
+    #       stages: [pre-commit]
+    #       args: [--strict, --ignore-missing-imports, --config-file=pyproject.toml]
+
+    # uv version.
+    rev: 0.5.5
+    hooks:
+      # Update the uv lockfile
+      - id: uv-lock

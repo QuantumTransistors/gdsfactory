@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Sequence
+from typing import Any
 
 import gdsfactory as gf
 from gdsfactory.component import Component
@@ -9,9 +10,11 @@ from gdsfactory.components.straight import straight as straight_function
 from gdsfactory.port import select_ports_optical
 from gdsfactory.routing.route_fiber_array import route_fiber_array
 from gdsfactory.typings import (
+    ComponentFactory,
     ComponentSpec,
     ComponentSpecOrList,
     CrossSectionSpec,
+    SelectPorts,
 )
 
 
@@ -19,15 +22,15 @@ def add_fiber_single(
     component: ComponentSpec = straight_function,
     grating_coupler: ComponentSpecOrList = grating_coupler_te,
     gc_port_name: str = "o1",
-    select_ports: Callable = select_ports_optical,
+    gc_port_name_fiber: str = "o2",
+    select_ports: SelectPorts = select_ports_optical,
     cross_section: CrossSectionSpec = "strip",
-    taper: ComponentSpec | None = None,
-    input_port_names: list[str] | tuple[str, ...] | None = None,
-    fiber_spacing: float = 70,
+    input_port_names: Sequence[str] | None = None,
+    pitch: float = 70,
     with_loopback: bool = True,
     loopback_spacing: float = 100.0,
-    straight: ComponentSpec = straight_function,
-    **kwargs,
+    straight: ComponentFactory = straight_function,
+    **kwargs: Any,
 ) -> Component:
     """Returns component with south routes and grating_couplers.
 
@@ -37,11 +40,11 @@ def add_fiber_single(
         component: component spec to connect to grating couplers.
         grating_coupler: spec for route terminations.
         gc_port_name: grating coupler input port name.
+        gc_port_name_fiber: grating coupler output port name.
         select_ports: function to select ports.
         cross_section: cross_section function.
-        taper: taper spec.
         input_port_names: list of input port names to connect to grating couplers.
-        fiber_spacing: spacing between fibers.
+        pitch: spacing between fibers.
         with_loopback: adds loopback structures.
         loopback_spacing: spacing between loopback and test structure.
         straight: straight spec.
@@ -62,7 +65,6 @@ def add_fiber_single(
         grating_indices: list of grating coupler indices.
         routing_straight: function to route.
         routing_method: route_single.
-        optical_routing_type: None: auto, 0: no extension, 1: standard, 2: check.
         gc_rotation: fiber coupler rotation in degrees. Defaults to -90.
         input_port_indexes: to connect.
 
@@ -74,7 +76,6 @@ def add_fiber_single(
         c = gf.components.crossing()
         cc = gf.routing.add_fiber_array(
             component=c,
-            optical_routing_type=2,
             grating_coupler=gf.components.grating_coupler_elliptical_te,
             with_loopback=False
         )
@@ -95,8 +96,11 @@ def add_fiber_single(
         raise ValueError(f"gc_port_name={gc_port_name!r} not in {gc.ports.keys()}")
 
     gc_port_names = [port.name for port in gc.ports]
+    if gc_port_name_fiber not in gc_port_names:
+        gc_port_name_fiber = gc_port_names[0]
+
     if gc_port_name not in gc_port_names:
-        raise ValueError(f"gc_port_name = {gc_port_name!r} not in {gc_port_names}")
+        gc_port_name = gc_port_names[0]
 
     orientation = gc.ports[gc_port_name].orientation
     if int(orientation) != 180:
@@ -119,7 +123,10 @@ def add_fiber_single(
         p.name for p in ref.ports.filter(orientation=180)
     ]
     output_port_names = [
-        port.name for port in ref.ports if port.name not in input_port_names
+        port.name
+        for port in ref.ports
+        if port.name not in input_port_names
+        if port.name is not None
     ]
     ref.drotate(+90)
 
@@ -130,10 +137,9 @@ def add_fiber_single(
         gc_port_name=gc_port_name,
         cross_section=cross_section,
         select_ports=select_ports,
-        taper=taper,
         with_loopback=False,
         port_names=input_port_names,
-        fiber_spacing=fiber_spacing,
+        pitch=pitch,
         **kwargs,
     )
 
@@ -147,30 +153,29 @@ def add_fiber_single(
         gc_port_name=gc_port_name,
         cross_section=cross_section,
         select_ports=select_ports,
-        taper=taper,
         with_loopback=False,
         port_names=output_port_names,
-        fiber_spacing=fiber_spacing,
+        pitch=pitch,
         **kwargs,
     )
     c2.copy_child_info(component)
 
     if with_loopback:
-        straight = c2 << gf.get_component(
+        straight_component = c2 << gf.get_component(
             straight, cross_section=cross_section, length=c2.dysize - 2 * gc.dxsize
         )
         gc1 = c2 << gc
         gc2 = c2 << gc
 
-        straight.drotate(90)
-        straight.dxmin = c2.dxmax + loopback_spacing
-        straight.dymin = c2.dymin + gc1.dxsize
+        straight_component.drotate(90)
+        straight_component.dxmin = c2.dxmax + loopback_spacing
+        straight_component.dymin = c2.dymin + gc1.dxsize
 
-        gc1.connect(gc_port_name, straight.ports[0])
-        gc2.connect(gc_port_name, straight.ports[1])
+        gc1.connect(gc_port_name, straight_component.ports[0])
+        gc2.connect(gc_port_name, straight_component.ports[1])
 
-        c2.add_port(name="vl1", port=gc1.ports[gc_port_name])
-        c2.add_port(name="vl2", port=gc2.ports[gc_port_name])
+        c2.add_port(name="loopback1", port=gc1.ports[gc_port_name_fiber])
+        c2.add_port(name="loopback2", port=gc2.ports[gc_port_name_fiber])
 
     return c2
 
@@ -178,7 +183,7 @@ def add_fiber_single(
 if __name__ == "__main__":
     from gdsfactory.samples.big_device import big_device
 
-    c = big_device(nports=10)
+    c = big_device(nports=1)
     c.info["polarization"] = "te"
     # c = gf.c.mmi2x2()
     c = add_fiber_single(c)

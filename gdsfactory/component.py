@@ -5,23 +5,29 @@ from __future__ import annotations
 import pathlib
 import warnings
 from collections.abc import Callable, Iterable, Iterator
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import kfactory as kf
-import klayout.db as db  # noqa: F401
 import klayout.lay as lay
 import numpy as np
 import yaml
-from kfactory import Instance, kdb, logger
+from kfactory import Instance, kdb
 from kfactory.kcell import PROPID, cell, save_layout_options
+from trimesh.scene.scene import Scene
 
-from gdsfactory.config import GDSDIR_TEMP
+from gdsfactory.config import CONF, GDSDIR_TEMP
 from gdsfactory.functions import get_polygons, get_polygons_points
 from gdsfactory.port import pprint_ports, select_ports, to_dict
 from gdsfactory.serialization import clean_value_json, convert_tuples_to_lists
 
 if TYPE_CHECKING:
+    import networkx as nx
+    from matplotlib.figure import Figure
+
     from gdsfactory.typings import (
+        AngleInDegrees,
+        ComponentSpec,
+        Coordinates,
         CrossSection,
         CrossSectionSpec,
         Layer,
@@ -30,13 +36,13 @@ if TYPE_CHECKING:
         LayerStack,
         LayerViews,
         PathType,
+        Spacing,
     )
 
 cell_without_validator = cell
-Componenteference = Instance
 
 
-def ensure_tuple_of_tuples(points) -> tuple[tuple[float, float]]:
+def ensure_tuple_of_tuples(points: Any) -> tuple[tuple[float, float]]:
     # Convert a single NumPy array to a tuple of tuples
     if isinstance(points, np.ndarray):
         points = tuple(map(tuple, points.tolist()))
@@ -50,7 +56,7 @@ def ensure_tuple_of_tuples(points) -> tuple[tuple[float, float]]:
     return points
 
 
-def size(region: kdb.Region, offset: float, dbu=1e3) -> kdb.Region:
+def size(region: kdb.Region, offset: float, dbu: float = 1e3) -> kdb.Region:
     return region.dup().size(int(offset * dbu))
 
 
@@ -107,7 +113,6 @@ _deprecated_attributes = {
 
 _deprecated_attributes_instance_settr = _deprecated_attributes - {"size_info"}
 _deprecated_attributes_component_gettr = _deprecated_attributes - {"move"}
-_deprecation_um = "in um is deprecated and will change to DataBaseUnits in gdsfactory9"
 
 
 class ComponentReference(kf.Instance):
@@ -128,18 +133,6 @@ class ComponentReference(kf.Instance):
         if __k == "_kfinst":
             return object.__getattribute__(self, "_kfinst")
         if __k in _deprecated_attributes:
-            deprecation_message = (
-                f"Getting `{self._kfinst.name}.{__k}` {_deprecation_um}. "
-                f"Please use `{self._kfinst.name}.d{__k}` instead."
-            )
-
-            warnings.warn(deprecation_message, stacklevel=2)
-
-            logger.warning(
-                f"{deprecation_message} For further information, please consult the migration guide: "
-                "https://gdsfactory.github.io/gdsfactory/notebooks/21_migration_guide_7_8.html"
-            )
-
             match __k:
                 case "center":
                     return super().dcenter
@@ -176,16 +169,6 @@ class ComponentReference(kf.Instance):
     def __setattr__(self, __k: str, __v: Any) -> None:
         """Set attribute with deprecation warning for dbu based attributes."""
         if __k in _deprecated_attributes_instance_settr:
-            deprecation_message_set = (
-                f"Setting `{self._kfinst.name}.{__k}` {_deprecation_um}. "
-                f"Please use `{self._kfinst.name}.d{__k}` instead."
-            )
-
-            warnings.warn(deprecation_message_set, stacklevel=2)
-            logger.warning(
-                f"{deprecation_message_set} For further information, please consult the migration guide: "
-            )
-
             return super().__setattr__(f"d{__k}", __v)
         super().__setattr__(__k, __v)
 
@@ -198,9 +181,9 @@ class ComponentReference(kf.Instance):
             "info is deprecated, use ref.cell.info instead",
             stacklevel=3,
         )
-        return self.cell.info
+        return self.cell.info.model_dump()
 
-    def connect(
+    def connect(  # type: ignore[override]
         self,
         port: str | kf.Port,
         other: Any | None = None,
@@ -211,7 +194,7 @@ class ComponentReference(kf.Instance):
         overlap: float | None = None,
         destination: kf.Port | None = None,
         preserve_orientation: bool | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> ComponentReference:
         """Return ComponentReference where port connects to a destination.
 
@@ -263,6 +246,15 @@ class ComponentReference(kf.Instance):
     def name(self, value: str) -> None:
         self.set_property(PROPID.NAME, value)
 
+    @property
+    def parent(self) -> kf.KCell | Component:
+        """Returns the parent Component."""
+        warnings.warn(
+            "parent is deprecated, use ref.cell instead",
+            stacklevel=3,
+        )
+        return self.cell
+
 
 class ComponentReferences(kf.kcell.Instances):
     def __getitem__(self, key: str | int) -> ComponentReference:
@@ -302,24 +294,24 @@ class ComponentBase:
     """
 
     @property
-    def layers(self) -> list[tuple[int, int]]:
+    def layers(self) -> list[Layer]:
         return [
             (info.layer, info.datatype)
             for info in self.kcl.layer_infos()
             if not self.bbox(self.kcl.layer(info)).empty()
         ]
 
-    def bbox_np(self) -> np.array:
+    def bbox_np(self) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
         """Returns the bounding box of the Component as a numpy array."""
         return np.array([[self.dxmin, self.dymin], [self.dxmax, self.dymax]])
 
-    def add_port(  # type: ignore[override]
+    def add_port(
         self,
         name: str | None = None,
         port: kf.Port | None = None,
         center: tuple[float, float] | kf.kdb.DPoint | None = None,
         width: float | None = None,
-        orientation: float | None = None,
+        orientation: "AngleInDegrees | None" = None,
         layer: LayerSpec | None = None,
         port_type: str = "optical",
         keep_mirror: bool = False,
@@ -339,57 +331,55 @@ class ComponentBase:
             cross_section: cross_section of the port.
         """
         if port:
-            kf.KCell.add_port(self, port=port, name=name, keep_mirror=keep_mirror)
-            return port
-        else:
-            from gdsfactory.pdk import get_cross_section, get_layer
-
-            if layer is None:
-                if cross_section is None:
-                    raise ValueError("Must specify layer or cross_section")
-                xs = get_cross_section(cross_section)
-                layer = xs.layer
-
-            if width is None:
-                if cross_section is None:
-                    raise ValueError("Must specify width or cross_section")
-                xs = get_cross_section(cross_section)
-                width = xs.width
-
-            if orientation is None:
-                raise ValueError("Must specify orientation")
-
-            if center is None:
-                raise ValueError("Must specify center")
-            elif isinstance(center, kdb.DPoint):
-                layer = get_layer(layer)
-                trans = kdb.DCplxTrans(1, orientation, False, center.to_v())
-            else:
-                layer = get_layer(layer)
-                x = float(center[0])
-                y = float(center[1])
-                trans = kdb.DCplxTrans(1, float(orientation), False, x, y)
-
-            return self.create_port(
-                name=name,
-                dwidth=round(width / self.kcl.dbu) * self.kcl.dbu,
-                layer=layer,
-                port_type=port_type,
-                dcplx_trans=trans,
+            return kf.KCell.add_port(
+                self, port=port, name=name, keep_mirror=keep_mirror
             )
+        from gdsfactory.config import CONF
+        from gdsfactory.pdk import get_cross_section, get_layer
+
+        if port_type not in CONF.port_types:
+            warnings.warn(
+                f"Port type {port_type} not in {CONF.port_types}. "
+                "Please add it to the port_types list in the config gf.CONF.port_types."
+            )
+
+        if layer is None:
+            if cross_section is None:
+                raise ValueError("Must specify layer or cross_section")
+            xs = get_cross_section(cross_section)
+            layer = xs.layer
+
+        if width is None:
+            if cross_section is None:
+                raise ValueError("Must specify width or cross_section")
+            xs = get_cross_section(cross_section)
+            width = xs.width
+
+        if orientation is None:
+            raise ValueError("Must specify orientation")
+
+        if center is None:
+            raise ValueError("Must specify center")
+        elif isinstance(center, kdb.DPoint):
+            layer = get_layer(layer)
+            trans = kdb.DCplxTrans(1, orientation, False, center.to_v())
+        else:
+            layer = get_layer(layer)
+            x = float(center[0])
+            y = float(center[1])
+            trans = kdb.DCplxTrans(1, float(orientation), False, x, y)
+
+        return self.create_port(
+            name=name,
+            dwidth=round(width / self.kcl.dbu) * self.kcl.dbu,
+            layer=layer,
+            port_type=port_type,
+            dcplx_trans=trans,
+        )
 
     def __getattribute__(self, __k: str) -> Any:
         """Shadow dbu based attributes with um based ones."""
         if __k in _deprecated_attributes_component_gettr:
-            logger.warning(
-                f"Getting `{self.name}.{__k}` {_deprecation_um}. "
-                f"Please use {self.name}.`d{__k}` instead. For further information, please "
-                "consult the migration guide "
-                "https://gdsfactory.github.io/gdsfactory/notebooks/"
-                "21_migration_guide_7_8.html",
-                # category=DeprecationWarning,
-                # stacklevel=3,
-            )
             return getattr(self, f"d{__k}")
         return super().__getattribute__(__k)
 
@@ -462,11 +452,9 @@ class ComponentBase:
 
     def add_polygon(
         self,
-        points: np.ndarray
-        | kdb.DPolygon
-        | kdb.Polygon
-        | kdb.Region
-        | list[list[float]],
+        points: (
+            "np.ndarray[Any, np.dtype[np.float64]] | kdb.DPolygon | kdb.Polygon | kdb.Region | Coordinates"
+        ),
         layer: LayerSpec,
     ) -> kdb.Shape:
         """Adds a Polygon to the Component and returns a klayout Shape.
@@ -477,7 +465,7 @@ class ComponentBase:
         """
         from gdsfactory.pdk import get_layer
 
-        layer = get_layer(layer)
+        _layer = get_layer(layer)
 
         if isinstance(points, tuple | list | np.ndarray):
             points = ensure_tuple_of_tuples(points)
@@ -491,7 +479,7 @@ class ComponentBase:
         else:
             polygon = kf.kdb.DPolygon(points)
 
-        return self.shapes(layer).insert(polygon)
+        return self.shapes(_layer).insert(polygon)
 
     def add_label(
         self,
@@ -525,10 +513,10 @@ class ComponentBase:
         component: Component,
         columns: int = 2,
         rows: int = 2,
-        spacing: tuple[float, float] = (100, 100),
+        spacing: "Spacing" = (100, 100),
         name: str | None = None,
-    ) -> Componenteference:
-        """Creates a Componenteference reference to a Component.
+    ) -> ComponentReference:
+        """Creates a ComponentReference reference to a Component.
 
         Args:
             component: The referenced component.
@@ -557,11 +545,11 @@ class ComponentBase:
             inst.name = name
         return ComponentReference(inst)
 
-    def get_ports_list(self, **kwargs) -> list[kf.Port]:
+    def get_ports_list(self, **kwargs: Any) -> list[kf.Port]:
         """Returns list of ports.
 
         Args:
-            kwargs: keyword arguments to filter ports.
+            kwargs: Additional kwargs.
 
         Keyword Args:
             layer: select ports with GDS layer.
@@ -574,7 +562,7 @@ class ComponentBase:
             port_type: select ports with port_type (optical, electrical, vertical_te).
             clockwise: if True, sort ports clockwise, False: counter-clockwise.
         """
-        return select_ports(self.ports, **kwargs)
+        return select_ports(ports=self.ports, **kwargs)
 
     def add_route_info(
         self,
@@ -582,7 +570,7 @@ class ComponentBase:
         length: float,
         length_eff: float | None = None,
         taper: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         """Adds route information to a component.
 
@@ -616,7 +604,7 @@ class ComponentBase:
             info[f"route_info_{key}"] = value
 
     def absorb(self, reference: Instance) -> Component:
-        """Absorbs polygons from Componenteference into Component.
+        """Absorbs polygons from ComponentReference into Component.
 
         Destroys the reference in the process but keeping the polygon geometry.
 
@@ -637,8 +625,10 @@ class ComponentBase:
         name: str | None = None,
         columns: int = 1,
         rows: int = 1,
-        spacing: tuple[float, float] = (100.0, 100.0),
+        spacing: "Spacing | None" = None,
         alias: str | None = None,
+        column_pitch: float = 0.0,
+        row_pitch: float = 0.0,
     ) -> ComponentReference:
         """Adds a component instance reference to a Component.
 
@@ -647,13 +637,30 @@ class ComponentBase:
             name: Name of the reference.
             columns: Number of columns in the array.
             rows: Number of rows in the array.
-            spacing: x, y distance between adjacent columns and adjacent rows.
+            spacing: pitch between adjacent columns and adjacent rows. Deprecated.
             alias: Deprecated. Use name instead.
-
+            column_pitch: column pitch.
+            row_pitch: row pitch.
         """
+        if spacing is not None:
+            warnings.warn(
+                "spacing is deprecated, use column_pitch and row_pitch instead"
+            )
+            column_pitch, row_pitch = spacing
+
         if rows > 1 or columns > 1:
-            a = kf.kdb.Vector(round(spacing[0] / self.kcl.dbu), 0)
-            b = kf.kdb.Vector(0, round(spacing[1] / self.kcl.dbu))
+            if rows > 1 and row_pitch == 0:
+                raise ValueError(f"rows = {rows} > 1 require {row_pitch=} > 0")
+
+            if columns > 1 and column_pitch == 0:
+                raise ValueError(f"columns = {columns} > 1 require {column_pitch} > 0")
+
+            column_pitch_dbu = self.kcl.to_dbu(column_pitch)
+            row_pitch_dbu = self.kcl.to_dbu(row_pitch)
+
+            a = kf.kdb.Vector(column_pitch_dbu, 0)
+            b = kf.kdb.Vector(0, row_pitch_dbu)
+
             inst = self.create_inst(
                 component,
                 na=columns,
@@ -721,23 +728,18 @@ class ComponentBase:
         """
         from gdsfactory import get_layer
 
-        labels = []
-
-        layer = get_layer(layer)
+        layer_enum = get_layer(layer)
 
         if recursive:
-            iterator = self.begin_shapes_rec(layer)
-
-            while not (iterator.at_end()):
-                shape = iterator.shape()
-                iterator.next()
-                if shape.is_text():
-                    labels.append(shape.dtext.transformed(iterator.dtrans()))
+            return [
+                shape.dtext.transformed(iterator.dtrans())
+                for iterator in self.begin_shapes_rec(layer_enum)
+                if (shape := iterator.shape()).is_text()
+            ]
         else:
-            labels.extend(
-                shape.dtext for shape in self.shapes(layer).each(kdb.Shapes.STexts)
-            )
-        return labels
+            return [
+                shape.dtext for shape in self.shapes(layer_enum).each(kdb.Shapes.STexts)
+            ]
 
     def get_paths(self, layer: LayerSpec, recursive: bool = True) -> list[kf.kdb.DPath]:
         """Returns a list of paths.
@@ -766,7 +768,7 @@ class ComponentBase:
             )
         return paths
 
-    def get_boxes(self, layer: LayerSpec, recursive: bool = True) -> list[kf.kdb.Box]:
+    def get_boxes(self, layer: LayerSpec, recursive: bool = True) -> list[kf.kdb.DBox]:
         """Returns a list of boxes.
 
         Args:
@@ -819,7 +821,7 @@ class ComponentBase:
         gdsdir: PathType | None = None,
         save_options: kdb.SaveLayoutOptions | None = None,
         with_metadata: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> pathlib.Path:
         """Write component to GDS and returns gdspath.
 
@@ -839,7 +841,7 @@ class ComponentBase:
         gdsdir = gdsdir or GDSDIR_TEMP
         gdsdir = pathlib.Path(gdsdir)
         gdsdir.mkdir(parents=True, exist_ok=True)
-        gdspath = gdspath or gdsdir / f"{self.name[:kf.config.max_cellname_length]}.gds"
+        gdspath = gdspath or gdsdir / f"{self.name[: CONF.max_cellname_length]}.gds"
         gdspath = pathlib.Path(gdspath)
 
         if not gdspath.parent.is_dir():
@@ -887,10 +889,13 @@ class ComponentBase:
 
         layers = [get_layer(layer) for layer in layers]
         for layer_index in layers:
+            self.shapes(layer_index).clear()
             if recursive:
-                self.kcl.clear_layer(layer_index)
-            else:
-                self.shapes(layer_index).clear()
+                [
+                    self.kcl[ci].shapes(layer).clear()
+                    for ci in self.called_cells()
+                    for layer in layers
+                ]
         return self
 
     def remap_layers(
@@ -935,7 +940,7 @@ class ComponentBase:
                     self.kcl[ci]._kdb_cell.copy(src_layer_index, dst_layer_index)
         return self
 
-    def pprint_ports(self, **kwargs) -> None:
+    def pprint_ports(self, **kwargs: Any) -> None:
         """Pretty prints ports.
 
         Args:
@@ -960,7 +965,7 @@ class ComponentBase:
         layer_views: LayerViews | None = None,
         layer_stack: LayerStack | None = None,
         exclude_layers: tuple[Layer, ...] | None = None,
-    ):
+    ) -> Scene:
         """Return Component 3D trimesh Scene.
 
         Args:
@@ -981,8 +986,10 @@ class ComponentBase:
             exclude_layers=exclude_layers,
         )
 
-    def get_netlist(self, recursive: bool = False, **kwargs) -> dict[str, Any]:
-        """Returns a netlist for circuit simulation.
+    def get_netlist(self, recursive: bool = False, **kwargs: Any) -> dict[str, Any]:
+        """Returns a place-aware netlist for circuit simulation.
+
+        It includes not only the connectivity information (nodes and connections) but also the specific placement coordinates for each component or cell in the layout.
 
         Args:
             recursive: if True, returns a recursive netlist.
@@ -1016,8 +1023,8 @@ class ComponentBase:
         recursive: bool = False,
         with_labels: bool = True,
         font_weight: str = "normal",
-        **kwargs,
-    ):
+        **kwargs: Any,
+    ) -> nx.Graph:
         """Plots a netlist graph with networkx.
 
         Args:
@@ -1082,6 +1089,41 @@ class ComponentBase:
         )
         return G
 
+    def plot_netlist_graphviz(
+        self, recursive: bool = False, interactive: bool = False, splines: str = "ortho"
+    ) -> None:
+        """Plots a netlist graph with graphviz.
+
+        Args:
+            recursive: if True, returns a recursive netlist.
+            interactive: if True, opens the graph in a browser.
+            splines: ortho, spline, polyline, line, curved.
+        """
+        from gdsfactory.schematic import plot_graphviz
+
+        n = self.to_graphviz(
+            recursive=recursive,
+        )
+        plot_graphviz(n, splines=splines, interactive=interactive)
+
+    def to_graphviz(
+        self,
+        recursive: bool = False,
+    ) -> nx.DiGraph:
+        """Returns a netlist graph with graphviz.
+
+        Args:
+            recursive: if True, returns a recursive netlist.
+        """
+        from gdsfactory.schematic import to_graphviz
+
+        netlist = self.get_netlist(recursive=recursive)
+        return to_graphviz(
+            netlist["instances"],
+            placements=netlist["placements"],
+            nets=netlist["nets"],
+        )
+
     def over_under(self, layer: LayerSpec, distance: int = 1) -> None:
         """Flattens and performs over-under on a layer in the Component.
 
@@ -1111,12 +1153,28 @@ class ComponentBase:
             d["ports"] = {port.name: to_dict(port) for port in self.ports}
         return clean_value_json(d)
 
+    @overload
     def plot(
         self,
-        show_labels: bool = False,
+        show_labels: bool = True,
+        show_ruler: bool = True,
+        return_fig: Literal[True] = True,
+    ) -> Figure: ...
+
+    @overload
+    def plot(
+        self,
+        show_labels: bool = True,
+        show_ruler: bool = True,
+        return_fig: Literal[False] = False,
+    ) -> None: ...
+
+    def plot(
+        self,
+        show_labels: bool = True,
         show_ruler: bool = True,
         return_fig: bool = False,
-    ):
+    ) -> Figure | None:
         """Plots the Component using klayout.
 
         Args:
@@ -1147,6 +1205,8 @@ class ComponentBase:
 
         layout_view.max_hier()
         layout_view.load_layer_props(str(lyp_path))
+
+        layout_view.add_missing_layers()
         layout_view.zoom_fit()
 
         layout_view.set_config("text-visible", "true" if show_labels else "false")
@@ -1175,28 +1235,27 @@ class ComponentBase:
             left=0, right=1, top=1, bottom=0, wspace=0, hspace=0
         )  # Remove any padding
         plt.tight_layout(pad=0)  # Ensure no space is wasted
-        if return_fig:
-            return fig
+        return fig if return_fig else None
 
     # Deprecated methods
     @property
-    def named_references(self):
+    def named_references(self) -> list[ComponentReference]:
         """Returns a dictionary of named references."""
         warnings.warn("named_references is deprecated. Use insts instead")
         return self.insts
 
     @property
-    def references(self) -> list[Componenteference]:
+    def references(self) -> list[ComponentReference]:
         """Returns a list of references."""
         warnings.warn("references is deprecated. Use insts instead")
         return list(self.insts)
 
-    def ref(self, *args, **kwargs) -> kdb.DCellInstArray:
+    def ref(self, *args: Any, **kwargs: Any) -> kdb.DCellInstArray:
         """Returns a Component Instance."""
         raise ValueError("ref() is deprecated. Use add_ref() instead")
 
 
-class Component(ComponentBase, kf.KCell):
+class Component(ComponentBase, kf.KCell):  # type: ignore
     """Canvas where you add polygons, instances and ports.
 
     - stores settings that you use to build the component
@@ -1216,7 +1275,7 @@ class Component(ComponentBase, kf.KCell):
         kcl: kf.KCLayout | None = None,
         kdb_cell: kdb.Cell | None = None,
         ports: kf.Ports | None = None,
-    ):
+    ) -> None:
         """Initializes a Component."""
         self.insts = ComponentReferences()
         super().__init__(name=name, kcl=kcl, kdb_cell=kdb_cell, ports=ports)
@@ -1226,8 +1285,8 @@ class Component(ComponentBase, kf.KCell):
         return ComponentReference(kf.KCell.create_inst(self, component))
 
 
-class ComponentAllAngle(ComponentBase, kf.VKCell):
-    def plot(self, **kwargs) -> None:
+class ComponentAllAngle(ComponentBase, kf.VKCell):  # type: ignore
+    def plot(self, **kwargs: Any) -> None:  # type: ignore
         """Plots the Component using klayout."""
         c = Component()
         if self.name is not None:
@@ -1236,8 +1295,13 @@ class ComponentAllAngle(ComponentBase, kf.VKCell):
         kf.VInstance(self).insert_into_flat(c, levels=0)
         c.plot(**kwargs)
 
+    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D107
+        super().__init__(*args, **kwargs)
 
-def container(component, function, **kwargs) -> Component:
+
+def container(
+    component: ComponentSpec, function: Callable[..., None], **kwargs: Any
+) -> Component:
     """Returns new component with a component reference.
 
     Args:
@@ -1257,9 +1321,9 @@ def container(component, function, **kwargs) -> Component:
 
 
 def component_with_function(
-    component,
+    component: ComponentSpec,
     function: Callable[..., None] | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> gf.Component:
     """Returns new component with a component reference.
 
@@ -1284,14 +1348,28 @@ def component_with_function(
 if __name__ == "__main__":
     import gdsfactory as gf
 
+    c = gf.c.mzi()
+    # n = c.to_graphviz()
+
+    # plot_graphviz(n)
+    c.plot_netlist_graphviz(interactive=True)
+
     # c = gf.Component()
+    # c.add_port(
+    #     name="o1",
+    #     center=(0, 0),
+    #     width=0.5,
+    #     orientation=0,
+    #     port_type="optical2",
+    #     layer="WG",
+    # )
     # b = c << gf.c.bend_circular()
     # s = c << gf.c.straight()
     # s.connect("o1", b.ports["o2"])
     # p = c.get_polygons()
     # p1 = c.get_polygons(by="name")
-    c = gf.c.mzi_lattice(cross_section="rib")
-    c = c.extract(["WG"])
+    # c = gf.c.mzi_lattice(cross_section="rib")
+    # c = c.extract(["WG"])
     # c.copy_layers({(1, 0): (2, 0)}, recursive=True)
     # c = gf.c.array(spacing=(300, 300), columns=2)
     # c.show()
@@ -1301,7 +1379,7 @@ if __name__ == "__main__":
     # gdspath = c.write_gds("test.gds")
     # c = gf.import_gds(gdspath)
     # n = c.get_netlist()
-    # c.plot_netlist(recursive=True)
+    # c.plot_netlist_networkx(recursive=True)
     # plt.show()
     c.show()
     # import matplotlib.pyplot as plt
@@ -1316,6 +1394,6 @@ if __name__ == "__main__":
     #     coupler_lengths=cpl, coupler_gaps=cpg, delta_lengths=dl0, length_x=1
     # )
     # n = c.get_netlist(recursive=True)
-    # c.plot_netlist(recursive=True)
+    # c.plot_netlist_networkx(recursive=True)
     # plt.show()
     # c.show()

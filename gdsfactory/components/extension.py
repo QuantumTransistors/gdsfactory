@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import Any
 
 import numpy as np
 from numpy import ndarray
@@ -10,6 +11,7 @@ from gdsfactory.component import Component
 from gdsfactory.components.mmi1x2 import mmi1x2
 from gdsfactory.cross_section import cross_section as cross_section_function
 from gdsfactory.port import Port
+from gdsfactory.routing.auto_taper import add_auto_tapers
 from gdsfactory.typings import ComponentSpec, Coordinate, CrossSectionSpec
 
 DEG2RAD = np.pi / 180
@@ -63,7 +65,8 @@ def extend_ports(
     cross_section: CrossSectionSpec | None = None,
     extension_port_names: list[str] | None = None,
     allow_width_mismatch: bool = False,
-    **kwargs,
+    auto_taper: bool = True,
+    **kwargs: Any,
 ) -> Component:
     """Returns a new component with some ports extended.
 
@@ -83,6 +86,7 @@ def extend_ports(
             if port has no cross_section it creates one using width and layer.
         extension_port_names: extension port names add to the new component.
         allow_width_mismatch: allow width mismatches.
+        auto_taper: if True adds automatic tapers.
         kwargs: cross_section settings.
 
     Keyword Args:
@@ -95,7 +99,8 @@ def extend_ports(
         clockwise: if True, sort ports clockwise, False: counter-clockwise.
     """
     c = gf.Component()
-    component = gf.get_component(component)
+    component = gf.get_component(component).dup()
+
     cref = c << component
 
     if centered:
@@ -112,6 +117,11 @@ def extend_ports(
     ports_to_extend_names = [p.name for p in ports_to_extend]
     ports_to_extend_names = port_names or ports_to_extend_names
 
+    if auto_taper and cross_section:
+        ports_to_extend = add_auto_tapers(
+            component=component, ports=ports_to_extend, cross_section=cross_section
+        )
+
     for port_name in ports_to_extend_names:
         if port_name not in port_names_all:
             warnings.warn(
@@ -127,7 +137,7 @@ def extend_ports(
                 extension_component = gf.get_component(extension)
             else:
                 cross_section_extension = cross_section or cross_section_function(
-                    layer=port.layer, width=port.dwidth
+                    layer=gf.pdk.get_layer_tuple(port.layer), width=port.dwidth
                 )
 
                 if cross_section_extension is None:
@@ -160,8 +170,9 @@ def extend_ports(
 
 if __name__ == "__main__":
     # test_extend_ports()
-    c0 = gf.c.straight(width=5)
-    t = gf.components.taper(length=10, width1=5, width2=0.5)
-    p0 = c0["o1"]
-    c = extend_ports(c0, extension=t)
+    # c0 = gf.c.straight(width=5)
+    # t = gf.components.taper(length=10, width1=5, width2=0.5)
+    # p0 = c0["o1"]
+    # c = extend_ports(c0, extension=t)
+    c = extend_ports()
     c.show()

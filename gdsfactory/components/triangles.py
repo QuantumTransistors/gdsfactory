@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from functools import partial
+from typing import Any
 
-from gdsfactory import cell
+import gdsfactory as gf
 from gdsfactory.component import Component
 from gdsfactory.typings import LayerSpec
 
 
-@cell
+@gf.cell
 def triangle(
     x: float = 10,
     xtop: float = 0,
@@ -43,8 +44,8 @@ def triangle(
     return c
 
 
-@cell
-def triangle2(spacing: float = 3, **kwargs):
+@gf.cell
+def triangle2(spacing: float = 3, **kwargs: Any) -> Component:
     r"""Return 2 triangles (bot, top).
 
     Args:
@@ -86,8 +87,8 @@ def triangle2(spacing: float = 3, **kwargs):
     return c
 
 
-@cell
-def triangle4(**kwargs):
+@gf.cell
+def triangle4(**kwargs: Any) -> Component:
     r"""Return 4 triangles.
 
     Args:

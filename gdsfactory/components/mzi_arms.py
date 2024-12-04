@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from typing import Any
+
 import gdsfactory as gf
-from gdsfactory import cell
 from gdsfactory.component import Component
 from gdsfactory.components.bend_euler import bend_euler
 from gdsfactory.components.mmi1x2 import mmi1x2
@@ -10,7 +11,7 @@ from gdsfactory.components.straight import straight as straight_function
 from gdsfactory.typings import ComponentSpec
 
 
-@cell
+@gf.cell
 def mzi_arms(
     delta_length: float = 10.0,
     length_y: float = 0.8,
@@ -24,7 +25,7 @@ def mzi_arms(
     combiner: ComponentSpec | None = None,
     with_splitter: bool = True,
     delta_yright: float = 0,
-    **kwargs,
+    **kwargs: Any,
 ) -> Component:
     """Mzi made with arms.
 

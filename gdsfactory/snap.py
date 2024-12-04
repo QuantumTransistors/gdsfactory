@@ -5,9 +5,11 @@ from __future__ import annotations
 import warnings
 from functools import partial
 
+import kfactory as kf
 import numpy as np
+import numpy.typing as npt
 
-Value = float | tuple[float, ...] | np.ndarray
+Value = float | tuple[float, ...] | npt.NDArray[np.float64]
 
 
 def is_on_grid(
@@ -49,18 +51,15 @@ def snap_to_grid(
     x: Value,
     nm: int | None = None,
     grid_factor: int = 1,
-) -> Value:
-    """Snap x to grid_sizes.
+) -> npt.NDArray[np.float64]:
+    """Snap x to grid.
 
     Args:
         x: value to snap.
         nm: Optional grid size in nm. If None, it will use the default grid size from PDK multiplied by grid_factor.
         grid_factor: snap to grid_factor * grid_size.
     """
-    import gdsfactory as gf
-
-    grid_size = gf.kcl.dbu
-
+    grid_size = kf.kcl.dbu
     nm = nm or round(grid_size * 1000 * grid_factor)
     return nm * np.round(np.asarray(x, dtype=float) * 1e3 / nm) / 1e3
 

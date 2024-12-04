@@ -64,11 +64,16 @@ instances:
       route_info_strip_length: 16.637
       route_info_type: strip
       route_info_weight: 16.637
+      width: 0.5
     settings:
       allow_min_radius_violation: false
       angle: 90
       cross_section: strip
+      layer: null
+      npoints: null
       p: 0.5
+      radius: null
+      width: null
       with_arc_floorplan: true
   A2:
     component: bend_euler
@@ -83,11 +88,16 @@ instances:
       route_info_strip_length: 16.637
       route_info_type: strip
       route_info_weight: 16.637
+      width: 0.5
     settings:
       allow_min_radius_violation: false
       angle: 90
       cross_section: strip
+      layer: null
+      npoints: null
       p: 0.5
+      radius: null
+      width: null
       with_arc_floorplan: true
   A3:
     component: bend_euler
@@ -102,11 +112,16 @@ instances:
       route_info_strip_length: 16.637
       route_info_type: strip
       route_info_weight: 16.637
+      width: 0.5
     settings:
       allow_min_radius_violation: false
       angle: 90
       cross_section: strip
+      layer: null
+      npoints: null
       p: 0.5
+      radius: null
+      width: null
       with_arc_floorplan: true
   A4:
     component: bend_euler
@@ -121,11 +136,16 @@ instances:
       route_info_strip_length: 16.637
       route_info_type: strip
       route_info_weight: 16.637
+      width: 0.5
     settings:
       allow_min_radius_violation: false
       angle: 90
       cross_section: strip
+      layer: null
+      npoints: null
       p: 0.5
+      radius: null
+      width: null
       with_arc_floorplan: true
   B1:
     component: bend_euler
@@ -140,11 +160,16 @@ instances:
       route_info_strip_length: 16.637
       route_info_type: strip
       route_info_weight: 16.637
+      width: 0.5
     settings:
       allow_min_radius_violation: false
       angle: 90
       cross_section: strip
+      layer: null
+      npoints: null
       p: 0.5
+      radius: null
+      width: null
       with_arc_floorplan: true
   B2:
     component: bend_euler
@@ -159,11 +184,16 @@ instances:
       route_info_strip_length: 16.637
       route_info_type: strip
       route_info_weight: 16.637
+      width: 0.5
     settings:
       allow_min_radius_violation: false
       angle: 90
       cross_section: strip
+      layer: null
+      npoints: null
       p: 0.5
+      radius: null
+      width: null
       with_arc_floorplan: true
   B3:
     component: bend_euler
@@ -178,11 +208,16 @@ instances:
       route_info_strip_length: 16.637
       route_info_type: strip
       route_info_weight: 16.637
+      width: 0.5
     settings:
       allow_min_radius_violation: false
       angle: 90
       cross_section: strip
+      layer: null
+      npoints: null
       p: 0.5
+      radius: null
+      width: null
       with_arc_floorplan: true
   B4:
     component: bend_euler
@@ -197,11 +232,16 @@ instances:
       route_info_strip_length: 16.637
       route_info_type: strip
       route_info_weight: 16.637
+      width: 0.5
     settings:
       allow_min_radius_violation: false
       angle: 90
       cross_section: strip
+      layer: null
+      npoints: null
       p: 0.5
+      radius: null
+      width: null
       with_arc_floorplan: true
   m1:
     component: straight
