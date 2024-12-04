@@ -6,6 +6,7 @@ import importlib
 import pathlib
 import warnings
 from collections.abc import Callable
+from copy import deepcopy
 from functools import cached_property, partial
 from typing import Any, Literal
 
@@ -524,7 +525,12 @@ class Pdk(BaseModel):
         elif isinstance(cross_section, dict | DictConfig):
             xs_name = cross_section.get("cross_section", None)
             if xs_name:
-                settings = cross_section.get("settings", {})
+                settings = deepcopy(cross_section.get("settings", {}))
+                # Filter the dictionary to keep only valid fields
+                valid_fields = CrossSection.model_fields.keys()
+                settings.update(
+                    {key: value for key, value in kwargs.items() if key in valid_fields}
+                )
                 xs = self.get_cross_section(xs_name, **settings)
             else:
                 xs = CrossSection(**cross_section)
@@ -593,9 +599,11 @@ class Pdk(BaseModel):
         blocks = {
             name: dict(
                 bbox=bbox_to_points(c.bbox),
-                doc=c.__doc__.split("\n")[0]
-                if c and hasattr(c, "__doc__") and c.__doc__ is not None
-                else "",
+                doc=(
+                    c.__doc__.split("\n")[0]
+                    if c and hasattr(c, "__doc__") and c.__doc__ is not None
+                    else ""
+                ),
                 settings=extract_args_from_docstring(c.__doc__),
                 parameters={
                     sname: {
@@ -620,9 +628,9 @@ class Pdk(BaseModel):
                 pins={
                     port_name: {
                         "width": port.width,
-                        "xsection": port.cross_section.name
-                        if port.cross_section
-                        else None,
+                        "xsection": (
+                            port.cross_section.name if port.cross_section else None
+                        ),
                         "xya": [
                             float(port.center[0]),
                             float(port.center[1]),

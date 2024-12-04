@@ -183,7 +183,11 @@ CellSpec = (
 
 ComponentSpecDict = dict[str, ComponentSpec]
 CrossSectionSpec = (
-    CrossSectionFactory | CrossSection | dict[str, Any] | str | Transition
+    CrossSectionFactory
+    | dict[str, Any]
+    | str
+    | CrossSection
+    | Transition  # dict and str before CrossSection because otherwise pydantic will coerce a valid dict into an empty CrossSection
 )
 CrossSectionSpecs = tuple[CrossSectionSpec, ...]
 
