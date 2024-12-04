@@ -114,7 +114,9 @@ def to_gerber(
             f.write(f"%TF.FilePolarity,{layer.polarity}*%\n")
 
             digits = resolutions[options.resolution]
-            f.write(f"%FSLA{options.int_size}{digits}Y{options.int_size}{digits}X*%\n")
+            # BUG:
+            # f.write(f"%FSLA{options.int_size}{digits}Y{options.int_size}{digits}X*%\n")
+            f.write(f"%FSLAX{options.int_size}{digits}Y{options.int_size}{digits}*%\n")
 
             # Write header comments
             f.writelines([f"G04 {line}*\n" for line in header])
@@ -131,7 +133,11 @@ def to_gerber(
 
             # Only supports polygons for now
             if layer_tup in layer_to_polygons.keys():
-                for poly in layer_to_polygons[layer_tup.layer]:
+                # BUG:
+                # should be the 'index' (layer_tup or layer_tup.value) or the component.get_polygons_points()
+                # function should not use by='index'
+                # for poly in layer_to_polygons[layer_tup.layer]:
+                for poly in layer_to_polygons[layer_tup]:
                     f.write(polygon(poly))
 
             # File end
