@@ -15,7 +15,7 @@ from gdsfactory.typings import CrossSectionSpec, Float2
 @cell
 def bend_s(
     size: Float2 = (11.0, 1.8),
-    npoints: int = 99,
+    npoints: int = 199,
     cross_section: CrossSectionSpec = "xs_sc",
     **kwargs,
 ) -> Component:
