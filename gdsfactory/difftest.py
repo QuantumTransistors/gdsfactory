@@ -1,8 +1,10 @@
 """GDS regression test. Inspired by lytest."""
 
 import filecmp
+import os
 import pathlib
 import shutil
+import time
 
 import gdsfactory as gf
 from gdsfactory.config import CONF, PATH, logger
@@ -254,6 +256,12 @@ def difftest(
         raise AssertionError(
             f"Reference GDS file for {test_name!r} not found. Writing to {ref_file!r}"
         )
+    else:
+        # Get the current time
+        current_time = time.time()
+
+        # Update the accessed time to the current time
+        os.utime(ref_file, (current_time, os.path.getmtime(ref_file)))
 
     if filecmp.cmp(ref_file, run_file, shallow=False):
         return
