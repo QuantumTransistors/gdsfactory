@@ -12,6 +12,7 @@ from typing import Any, cast
 import gdstk
 import numpy as np
 from numpy import cos, mod, ndarray, pi, sin
+from pydantic_core import core_schema
 
 from gdsfactory.component_layout import (
     Polygon,
@@ -464,12 +465,12 @@ class ComponentReference(_GeometryHelper):
         return snap_to_grid(np.array(bbox))
 
     @classmethod
-    def __get_validators__(cls):
+    def __get_pydantic_core_schema__(cls, _source_type, _handler):
         """Get validators."""
-        yield cls.validate
+        return core_schema.no_info_plain_validator_function(cls.validate)
 
     @classmethod
-    def validate(cls, v, _info):
+    def validate(cls, v):
         """Check with pydantic ComponentReference valid type."""
         assert isinstance(
             v, ComponentReference

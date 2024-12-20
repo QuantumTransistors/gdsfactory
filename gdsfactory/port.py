@@ -40,6 +40,7 @@ from typing import Any, overload
 import numpy as np
 from numpy import ndarray
 from omegaconf import OmegaConf
+from pydantic_core import core_schema
 
 from gdsfactory import snap
 from gdsfactory.component_layout import Info, _rotate_points
@@ -168,12 +169,12 @@ class Port:
         return str(filtered_dict)
 
     @classmethod
-    def __get_validators__(cls):
+    def __get_pydantic_core_schema__(cls, _source_type, _handler):
         """Get validators."""
-        yield cls.validate
+        return core_schema.no_info_plain_validator_function(cls.validate)
 
     @classmethod
-    def validate(cls, v, _info):
+    def validate(cls, v):
         """For pydantic assumes Port is valid if has a name and a valid type."""
         assert isinstance(v, Port), f"TypeError, Got {type(v)}, expecting Port"
         assert v.name, f"Port has no name, got {v.name!r}"

@@ -23,6 +23,7 @@ import numpy as np
 import orjson
 import yaml
 from omegaconf import DictConfig
+from pydantic_core import core_schema
 
 from gdsfactory import snap
 from gdsfactory.component_layout import (
@@ -462,12 +463,12 @@ class Component(_GeometryHelper):
             )
 
     @classmethod
-    def __get_validators__(cls):
+    def __get_pydantic_core_schema__(cls, _source_type, _handler):
         """Get validators for the Component object."""
-        yield cls.validate
+        return core_schema.no_info_plain_validator_function(cls.validate)
 
     @classmethod
-    def validate(cls, v, _info):
+    def validate(cls, v):
         """Pydantic assumes component is valid if the following are true.
 
         - name characters < pdk.cell_decorator_settings.max_name_length

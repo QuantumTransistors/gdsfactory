@@ -38,6 +38,7 @@ from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 import gdstk
 import numpy as np
 from pydantic import BaseModel
+from pydantic_core import core_schema
 
 from gdsfactory.component import Component, ComponentReference
 from gdsfactory.component_layout import Label
@@ -225,11 +226,11 @@ class TypedArray(np.ndarray):
     """based on https://github.com/samuelcolvin/pydantic/issues/380."""
 
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate_type
+    def __get_pydantic_core_schema__(cls, _source_type, _handler):
+        return core_schema.no_info_plain_validator_function(cls.validate_type)
 
     @classmethod
-    def validate_type(cls, val, _info):
+    def validate_type(cls, val):
         return np.array(val, dtype=cls.inner_type)
 
 

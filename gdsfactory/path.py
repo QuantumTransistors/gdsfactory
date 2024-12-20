@@ -15,6 +15,7 @@ from collections.abc import Callable, Iterable
 
 import numpy as np
 from numpy import mod, pi
+from pydantic_core import core_schema
 
 from gdsfactory.cell import cell
 from gdsfactory.component import Component
@@ -398,12 +399,12 @@ class Path(_GeometryHelper):
         return final_hash.hexdigest()
 
     @classmethod
-    def __get_validators__(cls):
+    def __get_pydantic_core_schema__(cls, _source_type, _handler):
         """For pydantic."""
-        yield cls._validate
+        return core_schema.no_info_plain_validator_function(cls._validate)
 
     @classmethod
-    def _validate(cls, v, validation_info):
+    def _validate(cls, v):
         """Pydantic Path validator."""
         assert isinstance(v, Path), f"TypeError, Got {type(v)}, expecting Path"
         return v
