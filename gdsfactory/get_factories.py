@@ -5,6 +5,7 @@ from functools import partial
 from inspect import getmembers, signature
 
 from gdsfactory.config import logger
+from gdsfactory.pdk import get_component
 from gdsfactory.typings import Component, ComponentFactory
 
 
@@ -37,6 +38,10 @@ def get_cells(modules, verbose: bool = False) -> dict[str, ComponentFactory]:
                 except ValueError as e:
                     if verbose:
                         logger.warn(f"error in {t[0]}: {e}")
+            elif isinstance(t[1], dict):
+                if {"component", "settings"} == set(t[1].keys()):
+                    c_factory = partial(get_component, component=t[1])
+                    cells[t[0]] = c_factory
     return cells
 
 
