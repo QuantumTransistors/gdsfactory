@@ -398,14 +398,14 @@ class Pdk(BaseModel):
         cells = set(self.cells.keys())
 
         if callable(cell):
-            return cell
+            return partial(cell, **kwargs)
         elif isinstance(cell, str):
             if cell not in cells:
                 cells = list(self.cells.keys())
                 raise ValueError(
                     f"{cell!r} from PDK {self.name!r} not in cells: {cells} "
                 )
-            return self.cells[cell]
+            return partial(self.cells[cell], **kwargs)
         elif isinstance(cell, dict | DictConfig):
             for key in cell.keys():
                 if key not in component_settings:
