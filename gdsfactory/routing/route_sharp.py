@@ -59,7 +59,9 @@ def path_L(port1: Port, port2: Port) -> Path:
     pt1 = port1.center
     pt3 = port2.center
     delta_vec = pt3 - pt1
-    pt2 = pt1 + np.dot(delta_vec, e1) * e1
+    pt2 = pt1 + gf.snap.snap_to_grid(
+        np.dot(delta_vec, e1) * e1
+    )  # TODO snap_to_grid wherever np.dot is used
     return Path(np.array([pt1, pt2, pt3]))
 
 
