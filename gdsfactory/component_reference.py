@@ -654,6 +654,7 @@ class ComponentReference(_GeometryHelper):
 
         # This needs to be done in two steps otherwise floating point errors can accrue
         dxdy = np.array(d) - np.array(o)
+        dxdy = snap_to_grid(dxdy)  # makes sure the move is aligned to the grid.
         self.origin = np.array(self.origin) + dxdy
         self._bb_valid = False
         return self
