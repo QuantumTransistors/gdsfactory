@@ -126,33 +126,33 @@ def diff(
     if ignore_cell_name_differences:
         ld.on_cell_name_differs = lambda anotb: print(f"cell name differs {anotb.name}")
         equal = ld.compare(
-            ref._kdb_cell,
-            run._kdb_cell,
+            ref.kdb_cell,
+            run.kdb_cell,
             kdb.LayoutDiff.SmartCellMapping | kdb.LayoutDiff.Verbose,
             1,
         )
     else:
-        equal = ld.compare(ref._kdb_cell, run._kdb_cell, kdb.LayoutDiff.Verbose, 1)
+        equal = ld.compare(ref.kdb_cell, run.kdb_cell, kdb.LayoutDiff.Verbose, 1)
 
     if not ignore_label_differences:
         if a_texts or b_texts:
             equivalent = False
 
     if not equal:
-        c = KCell(f"{test_name}_difftest")
-        refdiff = KCell(f"{test_name}_old")
-        rundiff = KCell(f"{test_name}_new")
+        c = KCell(name=f"{test_name}_difftest")
+        refdiff = KCell(name=f"{test_name}_old")
+        rundiff = KCell(name=f"{test_name}_new")
 
         # TODO: add suffix new and old
-        refdiff.copy_tree(ref._kdb_cell)
-        rundiff.copy_tree(run._kdb_cell)
+        refdiff.copy_tree(ref.kdb_cell)
+        rundiff.copy_tree(run.kdb_cell)
         _ = c << refdiff
         _ = c << rundiff
 
         if xor:
             print("Running XOR on differences...")
             # assume equivalence until we find XOR differences, determined significant by the settings
-            diff = KCell(f"{test_name}_xor")
+            diff = KCell(name=f"{test_name}_xor")
 
             for layer in c.kcl.layer_infos():
                 # exists in both
