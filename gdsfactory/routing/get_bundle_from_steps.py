@@ -41,6 +41,7 @@ def get_bundle_from_steps(
     auto_widen: bool = False,
     taper_length: float = 10,
     width_wide: float = 2,
+    auto_widen_minimum_length: float = 200.0,
     **kwargs,
 ) -> list[Route]:
     """Returns a list of routes formed by the given waypoints steps.
@@ -67,6 +68,7 @@ def get_bundle_from_steps(
         auto_widen: if True, auto widen the cross_section.
         taper_length: length of the taper.
         width_wide: width of the wider straight section.
+        auto_widen_minimum_length: Minimum length to apply auto_widen.
         kwargs: cross_section settings.
 
     .. plot::
@@ -157,17 +159,6 @@ def get_bundle_from_steps(
         kwargs.pop("start_straight_length", None)
         x = gf.get_cross_section(cross_section)
         cross_section = x.copy(**kwargs)
-
-        if auto_widen:
-            taper = gf.get_component(
-                taper,
-                length=taper_length,
-                width1=x.width,
-                width2=width_wide,
-                cross_section=cross_section,
-            )
-        else:
-            taper = None
     else:
         taper = None
 
@@ -183,6 +174,11 @@ def get_bundle_from_steps(
         path_length_match_extra_length=path_length_match_extra_length,
         path_length_match_modify_segment_i=path_length_match_modify_segment_i,
         path_length_match_loops=path_length_match_loops,
+        auto_widen=auto_widen,
+        auto_widen_minimum_length=auto_widen_minimum_length,
+        width_wide=width_wide,
+        taper_length=taper_length,
+        **kwargs,
     )
 
 

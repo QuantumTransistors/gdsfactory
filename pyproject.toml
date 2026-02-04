@@ -53,7 +53,7 @@ keywords = ["eda", "photonics", "python"]
 license = {file = "LICENSE"}
 name = "gdsfactory"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 version = "7.27.2"
 
 [project.optional-dependencies]

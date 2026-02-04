@@ -95,6 +95,7 @@ def get_bundle_from_waypoints(
     auto_widen: bool = False,
     taper_length: float = 10,
     width_wide: float = 2,
+    auto_widen_minimum_length: float = 200.0,
     **kwargs,
 ) -> list[Route]:
     """Returns list of routes that connect bundle of ports with bundle of routes.
@@ -120,6 +121,7 @@ def get_bundle_from_waypoints(
         path_length_match_modify_segment_i: Index of straight segment to add path
             length matching loops to (requires path_length_match_loops != None).
         auto_widen: Automatically widen the cross section.
+        auto_widen_minimum_length: Minimum length to apply auto_widen.
         taper_length: Length of the taper.
         width_wide: Width of the wide part of the cross section.
         kwargs: cross_section settings.
@@ -186,16 +188,7 @@ def get_bundle_from_waypoints(
     except RouteError:
         return [on_route_error(waypoints)]
 
-    if taper and not isinstance(cross_section, list):
-        if auto_widen and callable(taper):
-            taper = gf.get_component(
-                taper,
-                length=taper_length,
-                width1=ports1[0].width,
-                width2=width_wide,
-                layer=ports1[0].layer,
-            )
-    else:
+    if isinstance(cross_section, list):
         taper = None
 
     if path_length_match_loops:
@@ -208,6 +201,7 @@ def get_bundle_from_waypoints(
             modify_segment_i=path_length_match_modify_segment_i,
             cross_section=cross_section,
         )
+
     routes = [
         round_corners(
             points=pts,
@@ -215,6 +209,10 @@ def get_bundle_from_waypoints(
             straight=straight,
             taper=taper,
             cross_section=cross_section,
+            auto_widen=auto_widen,
+            auto_widen_minimum_length=auto_widen_minimum_length,
+            taper_length=taper_length,
+            width_wide=width_wide,
         )
         for pts in routes
     ]

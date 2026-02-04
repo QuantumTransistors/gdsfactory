@@ -7,7 +7,7 @@ from functools import partial
 
 import gdstk
 import numpy as np
-from numpy import bool_, ndarray
+from numpy import bool_, isclose, ndarray
 
 import gdsfactory as gf
 from gdsfactory.component import Component, ComponentReference
@@ -678,12 +678,47 @@ def round_corners(
                 length=taper_length,
             )
         elif not isinstance(taper, Component):
-            taper = gf.get_component(taper, cross_section=cross_section, **kwargs)
+            width = x.width
+            taper = gf.get_component(
+                taper,
+                length=taper_length,
+                width1=width,
+                width2=width_wide,
+                cross_section=cross_section,
+                layer=x.layer,
+                **kwargs,
+            )
 
         # If there is a taper, make sure its length is known
         if taper and isinstance(taper, Component) and "length" not in taper.info:
             _taper_ports = list(taper.ports.values())
             taper.info["length"] = float(_taper_ports[-1].x - _taper_ports[0].x)
+
+    # If taper is given and width_wide is given, make sure they match
+    # Otherwise, get width_wide from taper
+    if isinstance(taper, Component):
+        pname_west, pname_east = (
+            p.name for p in _get_straight_ports(taper, layer=layer)
+        )
+        if width_wide is not None:
+            if not isclose(taper.ports[pname_east].width, width_wide, atol=1e-6):
+                warnings.warn(
+                    f"Taper wide end width {taper.ports[pname_east].width} does not match given width_wide {width_wide}",
+                    stacklevel=2,
+                )
+        else:
+            width_wide = taper.ports[pname_east].width
+
+        if not isclose(taper_length, taper.info["length"], atol=1e-6):
+            raise ValueError(
+                f"Taper length {taper.info['length']} does not match given taper_length {taper_length}"
+            )
+
+    # Argument check: if auto_widen is True, then taper must be given.
+    if auto_widen and taper is None:
+        raise ValueError(f"{auto_widen=}, but taper is None.")
+    if auto_widen and width_wide is None:
+        raise ValueError(f"{auto_widen=}, but cannot evaluate width_wide.")
 
     straight_fall_back_no_taper = straight_fall_back_no_taper or straight
 
@@ -835,7 +870,6 @@ def round_corners(
         elif cross_section:
             xsection = cross_section
             x = gf.get_cross_section(xsection, **kwargs)
-
         else:
             auto_widen = False
             x = None
@@ -848,7 +882,6 @@ def round_corners(
             isinstance(cross_section, list)
             or not auto_widen
             or length <= auto_widen_minimum_length
-            or not width_wide
         ):
             if cross_section:
                 wg = gf.get_component(
@@ -867,6 +900,7 @@ def round_corners(
             pname_west, pname_east = (
                 p.name for p in _get_straight_ports(taper, layer=layer)
             )
+
             taper_ref = taper.ref(
                 position=taper_origin, port_id=pname_west, rotation=angle
             )
