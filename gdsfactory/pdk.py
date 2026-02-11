@@ -526,11 +526,16 @@ class Pdk(BaseModel):
             xs_name = cross_section.get("cross_section", None)
             if xs_name:
                 settings = deepcopy(cross_section.get("settings", {}))
+                # ! QT: Removed the following because it caused a bug
+                # ! QT: for cross_section = {'cross_section': 'xs_name', 'settings': {'radius': 20}}
+                # ! QT: and kwargs = {'width': 0.5}.
+                # ! QT: width was discarded! We want to allow users to pass settings both in the dict and as kwargs, with kwargs taking precedence.
                 # Filter the dictionary to keep only valid fields
-                valid_fields = CrossSection.model_fields.keys()
-                settings.update(
-                    {key: value for key, value in kwargs.items() if key in valid_fields}
-                )
+                # valid_fields = CrossSection.model_fields.keys()
+                # settings.update(
+                #     {key: value for key, value in kwargs.items() if key in valid_fields}
+                # )
+                settings.update(**kwargs)
                 xs = self.get_cross_section(xs_name, **settings)
             else:
                 xs = CrossSection(**cross_section)
