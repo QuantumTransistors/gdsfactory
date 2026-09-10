@@ -53,7 +53,7 @@ from gdsfactory.port import (
     map_ports_to_orientation_cw,
     select_ports,
 )
-from gdsfactory.serialization import clean_dict
+from gdsfactory.serialization import DEFAULT_SERIALIZATION_MAX_DIGITS, clean_dict
 
 if TYPE_CHECKING:
     from gdsfactory.technology import LayerStack, LayerViews
@@ -158,6 +158,35 @@ def _rnd(arr, precision=1e-4):
     arr = np.ascontiguousarray(arr)
     ndigits = round(-math.log10(precision))
     return np.ascontiguousarray(arr.round(ndigits) / precision, dtype=np.int64)
+
+
+def _round_floats_for_report(value):
+    """Round floats to the serialization precision for reporting/regression purposes.
+
+    `Component.info` records raw arguments, but the cell CACHE is keyed on settings rounded to
+    DEFAULT_SERIALIZATION_MAX_DIGITS -- so two calls differing below that threshold share one
+    cell, and whichever built first decides the recorded value. That made `to_dict()` a function
+    of build order (qt01_pic_lfs GH #71): asking for `straight(length=3.0)` could report
+    3.000000000000014.
+
+    Reporting at the same precision the cache identifies cells at makes the output deterministic.
+    5e-7 um is three orders of magnitude below the 1 nm database grid, so nothing here is
+    physically meaningful. This changes only what is *reported* -- geometry is untouched.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, float):
+        return round(value, DEFAULT_SERIALIZATION_MAX_DIGITS)
+    # Exact type, deliberately not isinstance (hence the E721 waivers): a NamedTuple or a
+    # dict subclass carries structure that rebuilding it as a plain tuple/dict would discard,
+    # so anything that is merely a SUBCLASS of these falls through and is returned untouched.
+    if type(value) is list:  # noqa: E721
+        return [_round_floats_for_report(v) for v in value]
+    if type(value) is tuple:  # noqa: E721
+        return tuple(_round_floats_for_report(v) for v in value)
+    if type(value) is dict:  # noqa: E721
+        return {k: _round_floats_for_report(v) for k, v in value.items()}
+    return value
 
 
 class Component(_GeometryHelper):
@@ -2155,7 +2184,7 @@ class Component(_GeometryHelper):
 
         d["name"] = self.name
         d["info"] = self.info.model_dump()
-        return d
+        return _round_floats_for_report(d)
 
     def to_dict_yaml(self, **kwargs) -> str:
         """Write Dict representation of a component in YAML format.
