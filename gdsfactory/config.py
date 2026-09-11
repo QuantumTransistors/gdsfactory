@@ -238,7 +238,7 @@ class Settings(BaseSettings):
         on_layer_missmatch: On layer mismatch error type.
         on_type_missmatch: On type mismatch error type.
         on_duplicate_cell_name: How to report a new Component renaming itself
-            because the name it asked for is already taken by a live Component.
+            because the name the counter would have handed out is already taken.
             The rename always happens; this only controls the report.
         default_show_suffix: Default show suffix.
         raise_error_on_mutation: Raise error on mutation.
@@ -276,7 +276,7 @@ class Settings(BaseSettings):
     on_duplicate_cell_name: Literal["warn", "error", "ignore"] = Field(
         default="warn",
         description="How to report a new Component renaming itself to a $k suffix "
-        "because the name it asked for is already taken by a live Component. The "
+        "because the name the counter would have handed out is already taken. The "
         "rename always happens; this only controls whether it is reported.",
     )
     default_show_suffix: Literal[".oas", ".gds"] = ".gds"

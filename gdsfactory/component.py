@@ -279,25 +279,40 @@ class Component(_GeometryHelper):
         gdsfactory itself deduplicated, or simply asked for), and the counter for
         the bare name says nothing about it. So skip every taken candidate, and
         reserve whatever is handed out so a later derivation cannot reissue it.
+        The probe, not the counter, is what makes a handout safe -- which is why
+        ``rename`` may release a reservation back to here without risking a
+        reissue. ``rename``'s own derivation is not probed, so it releases only
+        a name nothing derives from.
 
-        Warns (or raises, per ``CONF.on_duplicate_cell_name``) when a skipped
-        candidate was a ``$k`` name, i.e. when the bare counter alone would have
-        handed out a name that is already in use. That switch controls only
-        whether the skip is *reported*; the skip itself always happens.
+        Warns (or raises, per ``CONF.on_duplicate_cell_name``) exactly when the
+        name the counter alone would have handed out was already taken, never on
+        the shape of a name: a cell genuinely called ``ruler$10`` duplicates as
+        quietly as any other. Two components asking for the same name is the
+        ordinary duplicate case and stays silent whatever that name looks like;
+        handing out a name somebody else already holds is the bug. That switch
+        controls only whether the skip is *reported*; the skip always happens.
         """
         from gdsfactory.cell import CACHE
 
-        skipped: list[str] = []
+        # What the counter alone would have handed out, which is what the unprobed
+        # code did: the k'th duplicate gets $k.
+        counter = name_counters[name]
+        expected = name if counter == 0 else f"{name}${counter}"
+
+        probes = 0
         candidate = name
         while candidate in CACHE or name_counters[candidate] > 0:
-            if len(skipped) >= _MAX_NAME_PROBES:
+            if probes >= _MAX_NAME_PROBES:
                 raise ValueError(
                     f"Could not find a free cell name for {name!r} after "
                     f"{_MAX_NAME_PROBES} attempts."
                 )
-            skipped.append(candidate)
-            # Mirrors the historical arithmetic: the k'th duplicate gets $k.
-            k = name_counters[name]
+            probes += 1
+            # Suffixes start at $1: $0 is a name gdsfactory has never minted, and
+            # the counter can be 0 while the bare name is already in CACHE (@cell
+            # keys CACHE on the signature name, which autoname=False and
+            # get_child_name leave uncounted).
+            k = max(name_counters[name], 1)
             name_counters[name] = k + 1
             candidate = f"{name}${k}"
 
@@ -306,18 +321,18 @@ class Component(_GeometryHelper):
         # wrong Component.
         name_counters[candidate] += 1
 
-        if any("$" in skipped_name for skipped_name in skipped):
+        if candidate != expected:
             message = (
                 f"Cell name collision: {name!r} resolved to {candidate!r} because "
-                f"{skipped[-1]!r} is already taken by a live Component. Two "
-                "different components asked for the same name; the older one keeps "
-                "it. Set CONF.on_duplicate_cell_name to 'error' to raise instead, "
-                "or 'ignore' to silence."
+                f"{expected!r} is already taken. Two different components asked for "
+                "the same name; the older one keeps it. Set "
+                "CONF.on_duplicate_cell_name to 'error' to raise instead, or "
+                "'ignore' to silence."
             )
             if CONF.on_duplicate_cell_name == "error":
                 raise ValueError(message)
             elif CONF.on_duplicate_cell_name == "warn":
-                warnings.warn(message)
+                warnings.warn(message, UserWarning, stacklevel=3)
 
         return candidate
 
@@ -399,6 +414,18 @@ class Component(_GeometryHelper):
             old_name = self.name
             if CACHE.get(old_name) is self:
                 remove_from_cache(self.name)
+            elif name_counters[old_name] == 1:
+                # This component is the only thing that can be holding old_name's
+                # reservation from _reserve_name -- it is not in CACHE under it --
+                # and it is leaving, so give the name back.
+                #
+                # Exactly 1, the same test remove_from_cache uses, so the two
+                # release paths agree. A higher count means old_name is also
+                # serving as the base index for derived names ($1, $2 ...), and
+                # the derivation in the block below is NOT probed: releasing
+                # there would let a later rename re-derive a suffix a live
+                # component still holds.
+                name_counters[old_name] = 0
 
             # cache the new name and add to counter if specified
             if cache is True:
