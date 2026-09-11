@@ -219,8 +219,8 @@ def test_no_sequence_puts_two_live_components_on_one_name() -> None:
     Bounded enumeration -- the property is what the change is for, and the only
     one a test can assert without a second gdsfactory to compare against. Renames
     are in scope because they go through the same probe as construction; what is
-    out of scope is ``cache=False`` and ``clear_cache``, which record nothing and
-    forget everything respectively.
+    out of scope is ``cache=False``, which records nothing, and ``clear_cache``,
+    which drops the cache and the counters underneath a name that stays held.
     """
     for i, seq in enumerate(_sequences(4)):
         prefix = f"enum_probe_{i}"
@@ -340,6 +340,32 @@ def test_rename_collision_warning_points_at_the_caller() -> None:
     assert setter_record[0].filename == __file__, setter_record[0].filename
     assert call_record[0].filename == __file__, call_record[0].filename
     assert len({c.name for c in held}) == len(held)
+
+
+def test_clear_cache_does_not_free_a_name_a_live_component_holds() -> None:
+    """``clear_cache()`` drops the cache and the counters, never the occupancy record.
+
+    An earlier draft of this change cleared ``_live_names`` there too, on the
+    argument that a caller who rebuilds after ``clear_cache()`` should not see a
+    ``$1``. It is the wrong trade, and ``qt01_pic_lfs`` is where it shows: a die
+    generator calls ``gf.clear_cache()`` before every die while the composite it
+    is building keeps every previous die's whole tree alive, so the clear handed
+    the next die a name a live component still answered to -- the very collision
+    this module exists to refuse, switched off immediately before the moment it
+    was written for.
+
+    ``_live_names`` is weak. It needs no clearing: a name frees itself when the
+    Component holding it dies, which is the only moment it is honestly free.
+    """
+    held = gf.Component("survives_clear_cache")
+
+    gf.clear_cache()
+
+    with pytest.warns(UserWarning, match="Cell name collision"):
+        rebuilt = gf.Component("survives_clear_cache")
+
+    assert held.name == "survives_clear_cache"
+    assert rebuilt.name != held.name
 
 
 if __name__ == "__main__":

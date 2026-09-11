@@ -134,8 +134,10 @@ name_counters = Counter()
 
 # The names live Components currently hold, written where a name is handed out
 # (rename with cache=True, which is the path Component() itself takes) and dropped
-# where it is given up (rename away, clear_cache, or the Component being collected).
-# Weak, so a name is free again as soon as nothing holds the Component.
+# where it is given up (renamed away, or the Component collected). Weak, so a name
+# is free again as soon as nothing holds the Component -- which is why clear_cache
+# does NOT clear this: a cleared occupancy record hands a live component's name to
+# the next one, and a weak map already forgets at the only honest moment.
 _live_names: weakref.WeakValueDictionary[str, Component] = weakref.WeakValueDictionary()
 
 # Assertion floor for the cell-name collision probe in Component._reserve_name.
