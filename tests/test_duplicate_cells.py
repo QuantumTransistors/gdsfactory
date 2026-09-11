@@ -209,6 +209,10 @@ def test_construction_never_puts_two_live_components_on_one_name() -> None:
             components = [gf.Component(names[k]) for k in choices]
         handed_out = [c.name for c in components]
         assert len(set(handed_out)) == depth, (choices, handed_out)
+        # $0 is a suffix gdsfactory has never minted. Nothing special-cases it any
+        # more -- the index is always past the name just refused -- so this is the
+        # only thing standing behind that claim.
+        assert not any(n.endswith("$0") for n in handed_out), (choices, handed_out)
 
 
 def test_collision_warning_points_at_the_caller() -> None:
