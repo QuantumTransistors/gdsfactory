@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import itertools
 import warnings
 
 import pytest
@@ -192,27 +191,54 @@ def test_a_vacated_base_name_is_reusable(monkeypatch: pytest.MonkeyPatch) -> Non
     assert d.name == "burned_probe$1", d.name
 
 
-def test_construction_never_puts_two_live_components_on_one_name() -> None:
-    """Every sequence of constructions over one name set leaves distinct names.
+def _sequences(depth: int):
+    """Every construct/rename sequence of ``depth`` steps over three names.
+
+    A step is either building a new component on one of the names, or assigning
+    one of them to a component built earlier. Yields ``(op, index_or_name, ...)``
+    tuples; the name set is per-sequence, so no global reset is needed.
+    """
+
+    def rec(prefix: list, live: int):
+        if len(prefix) == depth:
+            yield tuple(prefix)
+            return
+        ops = [("new", k) for k in range(3)]
+        ops += [("ren", i, k) for i in range(live) for k in range(3)]
+        for op in ops:
+            prefix.append(op)
+            yield from rec(prefix, live + (1 if op[0] == "new" else 0))
+            prefix.pop()
+
+    yield from rec([], 0)
+
+
+def test_no_sequence_puts_two_live_components_on_one_name() -> None:
+    """Every construct/rename sequence over one name set leaves distinct names.
 
     Bounded enumeration -- the property is what the change is for, and the only
-    one a test can assert without a second gdsfactory to compare against.
-    ``rename`` is deliberately out of scope: its own derivation is unprobed, which
-    is the residual this change does not close.
+    one a test can assert without a second gdsfactory to compare against. Renames
+    are in scope because they go through the same probe as construction; what is
+    out of scope is ``cache=False`` and ``clear_cache``, which record nothing and
+    forget everything respectively.
     """
-    depth = 4
-    for i, choices in enumerate(itertools.product(range(3), repeat=depth)):
+    for i, seq in enumerate(_sequences(4)):
         prefix = f"enum_probe_{i}"
         names = [prefix, f"{prefix}$1", f"{prefix}$2"]
+        components: list[gf.Component] = []
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            components = [gf.Component(names[k]) for k in choices]
-        handed_out = [c.name for c in components]
-        assert len(set(handed_out)) == depth, (choices, handed_out)
-        # $0 is a suffix gdsfactory has never minted. Nothing special-cases it any
-        # more -- the index is always past the name just refused -- so this is the
-        # only thing standing behind that claim.
-        assert not any(n.endswith("$0") for n in handed_out), (choices, handed_out)
+            for op in seq:
+                if op[0] == "new":
+                    components.append(gf.Component(names[op[1]]))
+                else:
+                    components[op[1]].name = names[op[2]]
+                held = [c.name for c in components]
+                assert len(set(held)) == len(held), (seq, held)
+                # $0 is a suffix gdsfactory has never minted. Nothing special-cases
+                # it any more -- the index is always past the name just refused --
+                # so this is the only thing standing behind that claim.
+                assert not any(n.endswith("$0") for n in held), (seq, held)
 
 
 def test_collision_warning_points_at_the_caller() -> None:
@@ -224,6 +250,96 @@ def test_collision_warning_points_at_the_caller() -> None:
 
     assert record[0].filename == __file__, record[0].filename
     assert (holder.name, first.name) == ("stacklevel_probe$1", "stacklevel_probe")
+
+
+def test_rename_onto_a_name_a_live_component_holds_is_refused() -> None:
+    """``c.name = x`` goes through the same probe and the same report as ``Component(x)``.
+
+    This is the path the consuming tapeout takes: ``qt01/dies/generate_test_die.py``
+    assigns ``_c.name = name`` to every sub-block in the die loop.
+    """
+    holder = gf.Component("rename_probe$1")
+    first = gf.Component("rename_probe")
+    mover = gf.Component("rename_probe_elsewhere")
+
+    with pytest.warns(UserWarning, match="Cell name collision"):
+        mover.name = "rename_probe"
+
+    assert mover.name == "rename_probe$2", mover.name
+    assert len({holder.name, first.name, mover.name}) == 3
+
+
+def test_renaming_a_component_onto_the_name_it_holds_is_a_no_op(
+    recwarn: pytest.WarningsRecorder,
+) -> None:
+    """A component is never a collision with itself, however the name is derived.
+
+    The literal case is ``test_same_names``; this is the derived one. ``self$1`` is
+    what the counter arithmetic hands out for ``self`` here, and the component
+    asking for it is the one already holding it.
+    """
+    first = gf.Component("self_probe")
+    mover = gf.Component("self_probe$1")
+
+    mover.name = "self_probe"
+
+    assert mover.name == "self_probe$1", mover.name
+    assert first.name == "self_probe"
+    assert [str(w.message) for w in recwarn] == []
+
+
+def test_a_refused_rename_leaves_the_component_where_it_was(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Under ``error`` the raise happens before the old name is given up.
+
+    Otherwise the component is live, keeps answering to its old name, and is
+    recorded as holding nothing -- so the next build could be handed that name.
+    """
+    monkeypatch.setattr(CONF, "on_duplicate_cell_name", "error")
+    # Bound to names: an unreferenced Component is collected at once, and a name
+    # nothing holds is free, which is the point of the record.
+    holder = gf.Component("refused_probe$1")
+    first = gf.Component("refused_probe")
+    mover = gf.Component("kept_probe$1")
+
+    with pytest.raises(ValueError, match="Cell name collision"):
+        mover.name = "refused_probe"
+
+    assert mover.name == "kept_probe$1", mover.name
+    assert (holder.name, first.name) == ("refused_probe$1", "refused_probe")
+    # And it is still recorded as holding that name: the next derivation for
+    # ``kept_probe`` lands on ``kept_probe$1``, and has to be refused rather than
+    # handed out on top of a live component.
+    bare = gf.Component("kept_probe")
+    with pytest.raises(ValueError, match="Cell name collision"):
+        gf.Component("kept_probe")
+    assert bare.name == "kept_probe", bare.name
+
+
+def test_rename_collision_warning_points_at_the_caller() -> None:
+    """Both ways of renaming report the caller's line, not gdsfactory's own.
+
+    The ``name`` setter is one frame deeper than ``rename()``, which is the whole
+    reason ``rename`` takes a ``stacklevel``.
+    """
+    held = [
+        gf.Component("setter_stacklevel_probe$1"),
+        gf.Component("setter_stacklevel_probe"),
+        gf.Component("call_stacklevel_probe$1"),
+        gf.Component("call_stacklevel_probe"),
+    ]
+    through_setter = gf.Component("rename_stacklevel_a")
+    through_call = gf.Component("rename_stacklevel_b")
+
+    with pytest.warns(UserWarning, match="Cell name collision") as setter_record:
+        through_setter.name = "setter_stacklevel_probe"
+    with pytest.warns(UserWarning, match="Cell name collision") as call_record:
+        through_call.rename("call_stacklevel_probe")
+
+    assert setter_record[0].filename == __file__, setter_record[0].filename
+    assert call_record[0].filename == __file__, call_record[0].filename
+    assert len({c.name for c in held}) == len(held)
 
 
 if __name__ == "__main__":
