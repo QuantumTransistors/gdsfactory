@@ -13,6 +13,7 @@ import os
 import pathlib
 import uuid
 import warnings
+import weakref
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
 from copy import deepcopy
@@ -126,8 +127,16 @@ ref.xmin = 10
 
 _timestamp2019 = datetime.datetime.fromtimestamp(1572014192.8273)
 
-# Global dictionary to hold counters for each name
+# Global dictionary to hold counters for each name. This is a derivation INDEX --
+# where the next $k for a name starts -- and nothing else; which names are actually
+# held is _live_names.
 name_counters = Counter()
+
+# The names live Components currently hold, written where a name is handed out
+# (rename with cache=True, which is the path Component() itself takes) and dropped
+# where it is given up (rename away, clear_cache, or the Component being collected).
+# Weak, so a name is free again as soon as nothing holds the Component.
+_live_names: weakref.WeakValueDictionary[str, Component] = weakref.WeakValueDictionary()
 
 # Assertion floor for the cell-name collision probe in Component._reserve_name.
 # The loop cannot spin -- every turn increments the bare name's counter, so the
@@ -271,60 +280,51 @@ class Component(_GeometryHelper):
 
     @staticmethod
     def _reserve_name(name: str) -> str:
-        """Returns a free cell name derived from ``name``, and reserves it.
+        """Returns a free cell name derived from ``name``.
 
-        Names are handed out as ``name``, ``name$1``, ``name$2`` ... but the
-        derived form is only safe if it is *probed*: a ``$k``-shaped name can
-        already belong to a live Component (read back from a GDS that KLayout or
-        gdsfactory itself deduplicated, or simply asked for), and the counter for
-        the bare name says nothing about it. So skip every taken candidate, and
-        reserve whatever is handed out so a later derivation cannot reissue it.
-        The probe, not the counter, is what makes a handout safe -- which is why
-        ``rename`` may release a reservation back to here without risking a
-        reissue. ``rename``'s own derivation is not probed, so it releases only
-        a name nothing derives from.
+        Names are handed out exactly as the counter arithmetic always handed them
+        out -- ``name``, ``name$1``, ``name$2`` ... -- and then moved forward past
+        anything a live Component or a CACHE key already holds. The counter alone
+        cannot answer that question: a ``$k``-shaped name can already belong to a
+        live Component (read back from a GDS that KLayout or gdsfactory itself
+        deduplicated, or simply asked for), and a counter above zero only says a
+        name once served as a derivation base, not that anybody still holds it.
 
-        Warns (or raises, per ``CONF.on_duplicate_cell_name``) exactly when the
-        name the counter alone would have handed out was already taken, never on
-        the shape of a name: a cell genuinely called ``ruler$10`` duplicates as
-        quietly as any other. Two components asking for the same name is the
-        ordinary duplicate case and stays silent whatever that name looks like;
-        handing out a name somebody else already holds is the bug. That switch
-        controls only whether the skip is *reported*; the skip always happens.
+        Warns (or raises, per ``CONF.on_duplicate_cell_name``) exactly when that
+        move forward happened, never on the shape of a name: a cell genuinely
+        called ``ruler$10`` duplicates as quietly as any other. Two components
+        asking for the same name is the ordinary duplicate case and stays silent
+        whatever that name looks like; handing out a name somebody else is still
+        holding is the bug. That switch controls only whether the skip is
+        *reported*; the skip always happens.
         """
         from gdsfactory.cell import CACHE
 
-        # What the counter alone would have handed out, which is what the unprobed
-        # code did: the k'th duplicate gets $k.
+        # What the counter arithmetic hands out: the k'th request for a name gets
+        # $k. Byte-identical to the name this code has always minted.
         counter = name_counters[name]
-        expected = name if counter == 0 else f"{name}${counter}"
+        candidate = name if counter == 0 else f"{name}${counter}"
+        name_counters[name] = counter + 1
+        taken = candidate
 
         probes = 0
-        candidate = name
-        while candidate in CACHE or name_counters[candidate] > 0:
+        while candidate in CACHE or candidate in _live_names:
             if probes >= _MAX_NAME_PROBES:
                 raise ValueError(
                     f"Could not find a free cell name for {name!r} after "
                     f"{_MAX_NAME_PROBES} attempts."
                 )
             probes += 1
-            # Suffixes start at $1: $0 is a name gdsfactory has never minted, and
-            # the counter can be 0 while the bare name is already in CACHE (@cell
-            # keys CACHE on the signature name, which autoname=False and
-            # get_child_name leave uncounted).
-            k = max(name_counters[name], 1)
+            # The index is already past the name just refused, so $0 cannot be
+            # minted here and needs no special case.
+            k = name_counters[name]
             name_counters[name] = k + 1
             candidate = f"{name}${k}"
 
-        # Reserve in name_counters ONLY. Never write a derived name into CACHE:
-        # @cell returns CACHE entries as cache hits, which would hand back the
-        # wrong Component.
-        name_counters[candidate] += 1
-
-        if candidate != expected:
+        if probes:
             message = (
                 f"Cell name collision: {name!r} resolved to {candidate!r} because "
-                f"{expected!r} is already taken. Two different components asked for "
+                f"{taken!r} is already taken. Two different components asked for "
                 "the same name; the older one keeps it. Set "
                 "CONF.on_duplicate_cell_name to 'error' to raise instead, or "
                 "'ignore' to silence."
@@ -414,18 +414,11 @@ class Component(_GeometryHelper):
             old_name = self.name
             if CACHE.get(old_name) is self:
                 remove_from_cache(self.name)
-            elif name_counters[old_name] == 1:
-                # This component is the only thing that can be holding old_name's
-                # reservation from _reserve_name -- it is not in CACHE under it --
-                # and it is leaving, so give the name back.
-                #
-                # Exactly 1, the same test remove_from_cache uses, so the two
-                # release paths agree. A higher count means old_name is also
-                # serving as the base index for derived names ($1, $2 ...), and
-                # the derivation in the block below is NOT probed: releasing
-                # there would let a later rename re-derive a suffix a live
-                # component still holds.
-                name_counters[old_name] = 0
+            if _live_names.get(old_name) is self:
+                # It is leaving, so it no longer holds the name. Never touch
+                # name_counters here: that is the derivation index, and rewinding
+                # it would re-mint a $k somebody else still holds.
+                del _live_names[old_name]
 
             # cache the new name and add to counter if specified
             if cache is True:
@@ -433,6 +426,14 @@ class Component(_GeometryHelper):
                 if name_counters[name] > 1:
                     name = f"{name}${name_counters[name]-1}"
                 CACHE[name] = self
+
+        if cache is True:
+            # The one place a name is recorded as held -- construction reaches it
+            # through Component.__init__'s own rename. cache=False callers are
+            # deliberately outside the naming system (they take a live component's
+            # name for a throwaway copy), so they record nothing rather than
+            # displace the holder.
+            _live_names[name] = self
 
         self._cell.name = name
 
