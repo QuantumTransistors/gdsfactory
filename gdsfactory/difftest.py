@@ -41,7 +41,7 @@ def diff(
         show: shows diff in klayout.
     """
     try:
-        from kfactory import KCell, kdb
+        from kfactory import KCell, KCLayout, kdb
     except ImportError as e:
         print(
             "You can install `pip install gdsfactory[kfactory]` for using maskprep. "
@@ -139,9 +139,17 @@ def diff(
             equivalent = False
 
     if not equal:
-        c = KCell(name=f"{test_name}_difftest")
-        refdiff = KCell(name=f"{test_name}_old")
-        rundiff = KCell(name=f"{test_name}_new")
+        # The diff cells go in a throwaway KCLayout, never the process-global one KCell()
+        # defaults to. `show()` writes the *entire* layout, so a single pair of same-named
+        # cells anywhere in the process makes it raise "cell name(s) are used for more than
+        # one cell" -- and because that happens before this function returns its verdict, the
+        # geometry difference it exists to report is lost. The cells also accumulate across
+        # calls, so the odds of that grow with every diff in the process. `read_top_cell`
+        # already builds a KCLayout per file for the same reason.
+        diff_kcl = KCLayout(name=f"{test_name}_difftest_layout")
+        c = KCell(name=f"{test_name}_difftest", kcl=diff_kcl)
+        refdiff = KCell(name=f"{test_name}_old", kcl=diff_kcl)
+        rundiff = KCell(name=f"{test_name}_new", kcl=diff_kcl)
 
         # TODO: add suffix new and old
         refdiff.copy_tree(ref.kdb_cell)
@@ -152,7 +160,7 @@ def diff(
         if xor:
             print("Running XOR on differences...")
             # assume equivalence until we find XOR differences, determined significant by the settings
-            diff = KCell(name=f"{test_name}_xor")
+            diff = KCell(name=f"{test_name}_xor", kcl=diff_kcl)
 
             for layer in c.kcl.layer_infos():
                 # exists in both
@@ -202,7 +210,19 @@ def diff(
             equivalent = False
 
         if show:
-            c.show()
+            try:
+                # use_libraries=False: show() otherwise writes every OTHER KCLayout in the
+                # process as a library, and read_top_cell leaves one behind for every file
+                # ever compared. One stale layout with a duplicated cell name then sinks the
+                # viewer. `c` is self-contained -- copy_tree brought the geometry in -- so
+                # there are no libraries to resolve.
+                c.show(use_libraries=False)
+            except Exception as e:
+                # Showing the diff is a convenience, not the measurement: it writes a layout
+                # and talks to a KLayout GUI that is absent on CI. Either can fail for reasons
+                # unrelated to the geometry, and if that propagated it would replace this
+                # function's answer with an error about the viewer.
+                logger.warning(f"Could not show the {test_name!r} diff in klayout: {e}")
         if equivalent:
             return False
         else:

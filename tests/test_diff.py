@@ -232,3 +232,34 @@ def test_label_diff_ignored_no_xor_fails(
         show=False,
     )
     assert has_diff
+
+
+def test_show_failure_cannot_change_the_verdict():
+    """A broken viewer must not turn a geometry difference into an unrelated error.
+
+    Every other test in this file passes ``show=False``, but ``difftest`` -- the only
+    production caller -- uses the default ``show=True``. That gap hid a defect: ``c`` was
+    built in the process-global ``KCLayout`` and ``show()`` writes layouts, so a single pair
+    of same-named cells anywhere in the process raised ``cell name(s) are used for more than
+    one cell`` *before* ``diff`` returned. The geometry answer was replaced by an error about
+    the viewer, and tests that were about to pass failed instead.
+
+    Duplicate names are reachable in normal use: rebuilding modules in one process produces
+    two generations of a cell under one name.
+    """
+    from kfactory import KCell, KCLayout
+
+    stale = KCLayout(name="test_show_failure_stale_layout")
+    KCell(name="dupe", kcl=stale)
+    shadow = KCell(name="not_yet_dupe", kcl=stale)
+    shadow.name = "dupe"
+    assert [c.name for c in stale.layout.each_cell()] == ["dupe", "dupe"]
+
+    has_diff = diff(
+        ref_file=_gds_dir / "big_rect.gds",
+        run_file=_gds_dir / "small_rect.gds",
+        test_name="test_show_failure_cannot_change_the_verdict",
+        xor=True,
+        show=True,
+    )
+    assert has_diff is True
