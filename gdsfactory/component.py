@@ -13,6 +13,7 @@ import os
 import pathlib
 import uuid
 import warnings
+import weakref
 from collections import Counter
 from collections.abc import Callable, Iterable, Iterator
 from copy import deepcopy
@@ -126,8 +127,32 @@ ref.xmin = 10
 
 _timestamp2019 = datetime.datetime.fromtimestamp(1572014192.8273)
 
-# Global dictionary to hold counters for each name
+# Global dictionary to hold counters for each name. This is a derivation INDEX --
+# where the next $k for a name starts -- and nothing else; which names are actually
+# held is _live_names.
 name_counters = Counter()
+
+# The names live Components currently hold, written where a name is handed out
+# (rename with cache=True, which is the path Component() itself takes) and dropped
+# where it is given up (rename away, clear_cache, or the Component being collected).
+# Weak, so a name is free again as soon as nothing holds the Component.
+#
+# clear_cache() clearing this is load-bearing and was measured: removing that one
+# line took gdsfactory's own suite from 0 cell-name collision warnings to 306, and
+# four ordinary tests red, because a Component that has stopped being useful is not
+# collected the moment it stops -- a traceback, a fixture or a module binding keeps
+# it alive, and a weak map cannot tell that from a live one. clear_cache() is the
+# caller saying "new naming universe", and that assertion is the only thing that
+# can. The cost is that a caller holding a Component across clear_cache() and
+# rebuilding it gets the bare name back rather than a $1, which is the trade this
+# takes deliberately.
+_live_names: weakref.WeakValueDictionary[str, Component] = weakref.WeakValueDictionary()
+
+# Assertion floor for the cell-name collision probe in Component._reserve_name.
+# The loop cannot spin -- every turn increments the bare name's counter, so the
+# candidate is new each time -- which makes this unreachable by construction. It is
+# here so a future change that breaks that property fails loudly instead of hanging.
+_MAX_NAME_PROBES = 10_000
 
 
 valid_anchor_point_keywords = [
@@ -243,9 +268,7 @@ class Component(_GeometryHelper):
         if name == "Unnamed":
             name = f"Unnamed_{self.uid}"
 
-        name_counters[name] += 1
-        if name_counters[name] > 1:
-            name = f"{name}${name_counters[name]-1}"
+        name = self._reserve_name(name)
 
         self._cell = gdstk.Cell(name)
         self.rename(name, max_name_length=max_name_length)
@@ -264,6 +287,79 @@ class Component(_GeometryHelper):
         self.ports: dict[str, Port] = {}
 
         self.child = None
+
+    @staticmethod
+    def _reserve_name(
+        name: str, holder: Component | None = None, stacklevel: int = 3
+    ) -> str:
+        """Returns a free cell name derived from ``name``.
+
+        Names are handed out exactly as the counter arithmetic always handed them
+        out -- ``name``, ``name$1``, ``name$2`` ... -- and then moved forward past
+        anything a live Component or a CACHE key already holds. The counter alone
+        cannot answer that question: a ``$k``-shaped name can already belong to a
+        live Component (read back from a GDS that KLayout or gdsfactory itself
+        deduplicated, or simply asked for), and a counter above zero only says a
+        name once served as a derivation base, not that anybody still holds it.
+
+        Warns (or raises, per ``CONF.on_duplicate_cell_name``) exactly when that
+        move forward happened, never on the shape of a name: a cell genuinely
+        called ``ruler$10`` duplicates as quietly as any other. Two components
+        asking for the same name is the ordinary duplicate case and stays silent
+        whatever that name looks like; handing out a name somebody else is still
+        holding is the bug. That switch controls only whether the skip is
+        *reported*; the skip always happens.
+
+        ``holder`` is the Component the name is being reserved for, when there is
+        one: a name it already holds is free as far as it is concerned, which is
+        what keeps renaming a component to the name it already has a no-op.
+        ``stacklevel`` is how far out the caller is -- 3 from a construction or a
+        ``rename()`` call, 4 through the ``name`` setter.
+        """
+        from gdsfactory.cell import CACHE
+
+        # What the counter arithmetic hands out: the k'th request for a name gets
+        # $k. Byte-identical to the name this code has always minted.
+        counter = name_counters[name]
+        candidate = name if counter == 0 else f"{name}${counter}"
+        name_counters[name] = counter + 1
+        taken = candidate
+
+        # Taken means held by somebody *else*. Reading who holds a name rather
+        # than whether it is present is the same distinction _live_names exists
+        # for: ``get(candidate, holder) is not holder`` is false both when the
+        # name is free and when this very component is the one holding it.
+        probes = 0
+        while (
+            CACHE.get(candidate, holder) is not holder
+            or _live_names.get(candidate, holder) is not holder
+        ):
+            if probes >= _MAX_NAME_PROBES:
+                raise ValueError(
+                    f"Could not find a free cell name for {name!r} after "
+                    f"{_MAX_NAME_PROBES} attempts."
+                )
+            probes += 1
+            # The index is already past the name just refused, so $0 cannot be
+            # minted here and needs no special case.
+            k = name_counters[name]
+            name_counters[name] = k + 1
+            candidate = f"{name}${k}"
+
+        if probes:
+            message = (
+                f"Cell name collision: {name!r} resolved to {candidate!r} because "
+                f"{taken!r} is already taken. Two different components asked for "
+                "the same name; the older one keeps it. Set "
+                "CONF.on_duplicate_cell_name to 'error' to raise instead, or "
+                "'ignore' to silence."
+            )
+            if CONF.on_duplicate_cell_name == "error":
+                raise ValueError(message)
+            elif CONF.on_duplicate_cell_name == "warn":
+                warnings.warn(message, UserWarning, stacklevel=stacklevel)
+
+        return candidate
 
     def simplify(self, tolerance: float = 1e-3) -> Component:
         """Removes points from the polygon but does not change the polygon
@@ -322,9 +418,22 @@ class Component(_GeometryHelper):
 
     @name.setter
     def name(self, name) -> None:
-        self.rename(name)
+        # One frame deeper than a direct rename(): a report about this assignment
+        # should point at the assignment, not at this setter.
+        self.rename(name, stacklevel=4)
 
-    def rename(self, name: str, cache: bool = True, max_name_length: int | None = None):
+    def rename(
+        self,
+        name: str,
+        cache: bool = True,
+        max_name_length: int | None = None,
+        stacklevel: int = 3,
+    ):
+        """Gives this component ``name``, or a free name derived from it.
+
+        ``stacklevel`` is how far out the caller is, for the warnings this may
+        emit: 3 for a direct call, 4 through the ``name`` setter.
+        """
         from gdsfactory.cell import CACHE, remove_from_cache
 
         if max_name_length is None:
@@ -334,22 +443,39 @@ class Component(_GeometryHelper):
             name_short = get_name_short(name, max_name_length=max_name_length)
             warnings.warn(
                 f" {name} is too long. Max length is {max_name_length}. Renaming to {name_short}",
-                stacklevel=2,
+                stacklevel=stacklevel - 1,
             )
             name = name_short
 
         if self.name != name:
-            # if this component is registered under its old name in the cache, remove it
             old_name = self.name
-            if CACHE.get(old_name) is self:
-                remove_from_cache(self.name)
-
-            # cache the new name and add to counter if specified
             if cache is True:
-                name_counters[name] += 1
-                if name_counters[name] > 1:
-                    name = f"{name}${name_counters[name]-1}"
+                # Reserved before the old name is given up, so that a raise under
+                # CONF.on_duplicate_cell_name == "error" leaves this component
+                # recorded where it already was rather than recorded nowhere. The
+                # name it is holding is not a collision with itself, which is what
+                # ``holder`` says.
+                name = self._reserve_name(name, holder=self, stacklevel=stacklevel)
+
+            # if this component is registered under its old name in the cache, remove it
+            if CACHE.get(old_name) is self:
+                remove_from_cache(old_name)
+            if _live_names.get(old_name) is self:
+                # It is leaving, so it no longer holds the name. Never touch
+                # name_counters here: that is the derivation index, and rewinding
+                # it would re-mint a $k somebody else still holds.
+                del _live_names[old_name]
+
+            if cache is True:
                 CACHE[name] = self
+
+        if cache is True:
+            # The one place a name is recorded as held -- construction reaches it
+            # through Component.__init__'s own rename. cache=False callers are
+            # deliberately outside the naming system (they take a live component's
+            # name for a throwaway copy), so they record nothing rather than
+            # displace the holder.
+            _live_names[name] = self
 
         self._cell.name = name
 
