@@ -12,7 +12,7 @@ from typing import TypeVar, overload
 
 from pydantic import validate_call
 
-from gdsfactory.component import Component, name_counters
+from gdsfactory.component import Component, _live_names, name_counters
 from gdsfactory.component_layout import CellSettings
 from gdsfactory.config import CONF
 from gdsfactory.name import clean_name, get_name_short
@@ -49,6 +49,12 @@ def clear_cache() -> None:
     CACHE.clear()
     CACHE_IDS.clear()
     name_counters.clear()
+    # Components built before this call stay alive in the caller's own variables;
+    # leaving their names recorded would make every rebuilt cell derive a $1.
+    # Measured, because this line reads like housekeeping and is not: removing it
+    # took this repository's own suite from 0 cell-name collision warnings to 306.
+    # The full argument, and the residual it leaves, are on _live_names itself.
+    _live_names.clear()
 
 
 def print_cache() -> None:

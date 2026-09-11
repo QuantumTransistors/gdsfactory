@@ -134,10 +134,18 @@ name_counters = Counter()
 
 # The names live Components currently hold, written where a name is handed out
 # (rename with cache=True, which is the path Component() itself takes) and dropped
-# where it is given up (renamed away, or the Component collected). Weak, so a name
-# is free again as soon as nothing holds the Component -- which is why clear_cache
-# does NOT clear this: a cleared occupancy record hands a live component's name to
-# the next one, and a weak map already forgets at the only honest moment.
+# where it is given up (rename away, clear_cache, or the Component being collected).
+# Weak, so a name is free again as soon as nothing holds the Component.
+#
+# clear_cache() clearing this is load-bearing and was measured: removing that one
+# line took gdsfactory's own suite from 0 cell-name collision warnings to 306, and
+# four ordinary tests red, because a Component that has stopped being useful is not
+# collected the moment it stops -- a traceback, a fixture or a module binding keeps
+# it alive, and a weak map cannot tell that from a live one. clear_cache() is the
+# caller saying "new naming universe", and that assertion is the only thing that
+# can. The cost is that a caller holding a Component across clear_cache() and
+# rebuilding it gets the bare name back rather than a $1, which is the trade this
+# takes deliberately.
 _live_names: weakref.WeakValueDictionary[str, Component] = weakref.WeakValueDictionary()
 
 # Assertion floor for the cell-name collision probe in Component._reserve_name.

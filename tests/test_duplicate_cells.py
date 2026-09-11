@@ -219,8 +219,8 @@ def test_no_sequence_puts_two_live_components_on_one_name() -> None:
     Bounded enumeration -- the property is what the change is for, and the only
     one a test can assert without a second gdsfactory to compare against. Renames
     are in scope because they go through the same probe as construction; what is
-    out of scope is ``cache=False``, which records nothing, and ``clear_cache``,
-    which drops the cache and the counters underneath a name that stays held.
+    out of scope is ``cache=False`` and ``clear_cache``, which record nothing and
+    forget everything respectively.
     """
     for i, seq in enumerate(_sequences(4)):
         prefix = f"enum_probe_{i}"
@@ -342,30 +342,36 @@ def test_rename_collision_warning_points_at_the_caller() -> None:
     assert len({c.name for c in held}) == len(held)
 
 
-def test_clear_cache_does_not_free_a_name_a_live_component_holds() -> None:
-    """``clear_cache()`` drops the cache and the counters, never the occupancy record.
+def test_clear_cache_frees_a_name_a_live_component_still_holds() -> None:
+    """``clear_cache()`` frees held names too, and that is deliberate.
 
-    An earlier draft of this change cleared ``_live_names`` there too, on the
-    argument that a caller who rebuilds after ``clear_cache()`` should not see a
-    ``$1``. It is the wrong trade, and ``qt01_pic_lfs`` is where it shows: a die
-    generator calls ``gf.clear_cache()`` before every die while the composite it
-    is building keeps every previous die's whole tree alive, so the clear handed
-    the next die a name a live component still answered to -- the very collision
-    this module exists to refuse, switched off immediately before the moment it
-    was written for.
+    A draft of this change removed ``_live_names.clear()`` from ``clear_cache`` on
+    the argument that a weak map already forgets a name at the only honest moment,
+    when the Component holding it dies. Measured on this repository's own suite,
+    that took it from **0** cell-name collision warnings to **306**, and four
+    ordinary tests red -- ``tests/test_import_gds_cell.py`` among them, asserting a
+    cell is called ``rectangle`` and getting ``rectangle$1``. A Component is not
+    collected the moment it stops being useful: a traceback, a fixture or a module
+    binding keeps it alive, and a weak map cannot tell that from a live one.
+    ``clear_cache()`` is the caller saying "new naming universe", and that
+    assertion is the only thing that can.
 
-    ``_live_names`` is weak. It needs no clearing: a name frees itself when the
-    Component holding it dies, which is the only moment it is honestly free.
+    The residual this leaves is real and does not close here: a caller that holds
+    components across ``clear_cache()`` -- ``get_gen_die_func`` in ``qt01_pic_lfs``
+    calls it before laying out every die while the composite keeps every previous
+    die alive -- can still put two live Components on one name. That closes in the
+    caller, by not resetting the whole naming universe per die.
     """
-    held = gf.Component("survives_clear_cache")
+    held = gf.Component("freed_by_clear_cache")
 
     gf.clear_cache()
 
-    with pytest.warns(UserWarning, match="Cell name collision"):
-        rebuilt = gf.Component("survives_clear_cache")
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        rebuilt = gf.Component("freed_by_clear_cache")
 
-    assert held.name == "survives_clear_cache"
-    assert rebuilt.name != held.name
+    assert held.name == "freed_by_clear_cache"
+    assert rebuilt.name == "freed_by_clear_cache"
 
 
 if __name__ == "__main__":
