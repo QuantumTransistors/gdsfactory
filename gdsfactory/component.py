@@ -129,6 +129,12 @@ _timestamp2019 = datetime.datetime.fromtimestamp(1572014192.8273)
 # Global dictionary to hold counters for each name
 name_counters = Counter()
 
+# Assertion floor for the cell-name collision probe in Component._reserve_name.
+# The loop cannot spin -- every turn increments the bare name's counter, so the
+# candidate is new each time -- which makes this unreachable by construction. It is
+# here so a future change that breaks that property fails loudly instead of hanging.
+_MAX_NAME_PROBES = 10_000
+
 
 valid_anchor_point_keywords = [
     "ce",
@@ -243,9 +249,7 @@ class Component(_GeometryHelper):
         if name == "Unnamed":
             name = f"Unnamed_{self.uid}"
 
-        name_counters[name] += 1
-        if name_counters[name] > 1:
-            name = f"{name}${name_counters[name]-1}"
+        name = self._reserve_name(name)
 
         self._cell = gdstk.Cell(name)
         self.rename(name, max_name_length=max_name_length)
@@ -264,6 +268,58 @@ class Component(_GeometryHelper):
         self.ports: dict[str, Port] = {}
 
         self.child = None
+
+    @staticmethod
+    def _reserve_name(name: str) -> str:
+        """Returns a free cell name derived from ``name``, and reserves it.
+
+        Names are handed out as ``name``, ``name$1``, ``name$2`` ... but the
+        derived form is only safe if it is *probed*: a ``$k``-shaped name can
+        already belong to a live Component (read back from a GDS that KLayout or
+        gdsfactory itself deduplicated, or simply asked for), and the counter for
+        the bare name says nothing about it. So skip every taken candidate, and
+        reserve whatever is handed out so a later derivation cannot reissue it.
+
+        Warns (or raises, per ``CONF.on_duplicate_cell_name``) when a skipped
+        candidate was a ``$k`` name, i.e. when the bare counter alone would have
+        handed out a name that is already in use. That switch controls only
+        whether the skip is *reported*; the skip itself always happens.
+        """
+        from gdsfactory.cell import CACHE
+
+        skipped: list[str] = []
+        candidate = name
+        while candidate in CACHE or name_counters[candidate] > 0:
+            if len(skipped) >= _MAX_NAME_PROBES:
+                raise ValueError(
+                    f"Could not find a free cell name for {name!r} after "
+                    f"{_MAX_NAME_PROBES} attempts."
+                )
+            skipped.append(candidate)
+            # Mirrors the historical arithmetic: the k'th duplicate gets $k.
+            k = name_counters[name]
+            name_counters[name] = k + 1
+            candidate = f"{name}${k}"
+
+        # Reserve in name_counters ONLY. Never write a derived name into CACHE:
+        # @cell returns CACHE entries as cache hits, which would hand back the
+        # wrong Component.
+        name_counters[candidate] += 1
+
+        if any("$" in skipped_name for skipped_name in skipped):
+            message = (
+                f"Cell name collision: {name!r} resolved to {candidate!r} because "
+                f"{skipped[-1]!r} is already taken by a live Component. Two "
+                "different components asked for the same name; the older one keeps "
+                "it. Set CONF.on_duplicate_cell_name to 'error' to raise instead, "
+                "or 'ignore' to silence."
+            )
+            if CONF.on_duplicate_cell_name == "error":
+                raise ValueError(message)
+            elif CONF.on_duplicate_cell_name == "warn":
+                warnings.warn(message)
+
+        return candidate
 
     def simplify(self, tolerance: float = 1e-3) -> Component:
         """Removes points from the polygon but does not change the polygon
