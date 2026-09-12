@@ -134,7 +134,8 @@ name_counters = Counter()
 
 # The names live Components currently hold, written where a name is handed out
 # (rename with cache=True, which is the path Component() itself takes) and dropped
-# where it is given up (rename away, clear_cache, or the Component being collected).
+# where it is given up (rename away, remove_from_cache, clear_cache, or the
+# Component being collected).
 # Weak, so a name is free again as soon as nothing holds the Component.
 #
 # clear_cache() clearing this is load-bearing and was measured: removing that one
@@ -461,9 +462,12 @@ class Component(_GeometryHelper):
             if CACHE.get(old_name) is self:
                 remove_from_cache(old_name)
             if _live_names.get(old_name) is self:
-                # It is leaving, so it no longer holds the name. Never touch
-                # name_counters here: that is the derivation index, and rewinding
-                # it would re-mint a $k somebody else still holds.
+                # It is leaving, so it no longer holds the name. Stays even though
+                # remove_from_cache now frees the name too: that call only happens
+                # on the branch above, and a component renaming away from a name it
+                # holds without being cached under it reaches this line and nothing
+                # else. Never touch name_counters here: that is the derivation
+                # index, and rewinding it would re-mint a $k somebody else holds.
                 del _live_names[old_name]
 
             if cache is True:

@@ -6,6 +6,7 @@ import pytest
 
 import gdsfactory as gf
 from gdsfactory.cell import CACHE
+from gdsfactory.component import _live_names
 from gdsfactory.config import CONF
 
 
@@ -372,6 +373,55 @@ def test_clear_cache_frees_a_name_a_live_component_still_holds() -> None:
 
     assert held.name == "freed_by_clear_cache"
     assert rebuilt.name == "freed_by_clear_cache"
+
+
+def test_remove_from_cache_frees_the_name_it_gives_up() -> None:
+    """``remove_from_cache()`` hands the name back, so a rebuild gets it bare.
+
+    Throwing a cell away and building another one under the same name is what the
+    function is for. Leaving the name recorded as held made the rebuild derive a
+    ``$1`` from a name nothing wanted any more, which callers worked around by
+    dropping their last reference and forcing a garbage collection.
+
+    Unlike ``clear_cache()`` this frees exactly one name, and only from the
+    component that is giving it up -- see the guard test below.
+    """
+    thrown_away = gf.Component("remove_probe")
+
+    gf.remove_from_cache(thrown_away)
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            rebuilt = gf.Component("remove_probe")
+        assert rebuilt.name == "remove_probe", rebuilt.name
+        assert thrown_away.name == "remove_probe"
+    finally:
+        # The fork's tests/conftest.py resets no caches.
+        CACHE.pop("remove_probe", None)
+
+
+def test_remove_from_cache_cannot_free_another_components_name() -> None:
+    """The release is guarded by identity, so it never displaces a second holder.
+
+    Two components end up on one name only if a name is handed out while somebody
+    still answers to it. Here a live component holds ``guard_probe`` while a
+    different one is given up under that name; the holder must keep it.
+    """
+    holder = gf.Component("guard_probe")
+    other = gf.Component("guard_probe_other")
+    # Under the name being given up, but not the component recorded as holding it.
+    CACHE["guard_probe"] = other
+
+    try:
+        gf.remove_from_cache("guard_probe")
+
+        assert _live_names.get("guard_probe") is holder
+        with pytest.warns(UserWarning, match="Cell name collision"):
+            rebuilt = gf.Component("guard_probe")
+        assert rebuilt.name != "guard_probe", rebuilt.name
+    finally:
+        CACHE.pop("guard_probe", None)
 
 
 if __name__ == "__main__":
