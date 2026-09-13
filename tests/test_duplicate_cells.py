@@ -256,7 +256,7 @@ def test_collision_warning_points_at_the_caller() -> None:
 def test_rename_onto_a_name_a_live_component_holds_is_refused() -> None:
     """``c.name = x`` goes through the same probe and the same report as ``Component(x)``.
 
-    This is the path the consuming tapeout takes: ``qt01/dies/generate_test_die.py``
+    This is the path the consuming tapeout takes: its die-generation module
     assigns ``_c.name = name`` to every sub-block in the die loop.
     """
     holder = gf.Component("rename_probe$1")
@@ -358,7 +358,7 @@ def test_clear_cache_frees_a_name_a_live_component_still_holds() -> None:
     assertion is the only thing that can.
 
     The residual this leaves is real and does not close here: a caller that holds
-    components across ``clear_cache()`` -- ``get_gen_die_func`` in ``qt01_pic_lfs``
+    components across ``clear_cache()`` -- the consuming tapeout's die factory
     calls it before laying out every die while the composite keeps every previous
     die alive -- can still put two live Components on one name. That closes in the
     caller, by not resetting the whole naming universe per die.

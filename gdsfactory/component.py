@@ -192,8 +192,8 @@ def _round_floats_for_report(value):
     `Component.info` records raw arguments, but the cell CACHE is keyed on settings rounded to
     DEFAULT_SERIALIZATION_MAX_DIGITS -- so two calls differing below that threshold share one
     cell, and whichever built first decides the recorded value. That made `to_dict()` a function
-    of build order (qt01_pic_lfs GH #71): asking for `straight(length=3.0)` could report
-    3.000000000000014.
+    of build order (reported by a private consumer): asking for `straight(length=3.0)`
+    could report 3.000000000000014.
 
     Reporting at the same precision the cache identifies cells at makes the output deterministic.
     5e-7 um is three orders of magnitude below the 1 nm database grid, so nothing here is
