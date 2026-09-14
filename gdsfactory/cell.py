@@ -31,16 +31,34 @@ class CellReturnTypeError(ValueError):
 
 
 def remove_from_cache(name: str | Component) -> None:
-    """Removes Component name from CACHE and resets the name counter."""
+    """Gives ``name`` up: drops it from CACHE, rewinds the counter, frees the name.
 
-    if not isinstance(name, str):
-        name = name.name
+    Callers throw a cell away here and build another one under the same name, so
+    the name has to be free afterwards -- otherwise the rebuild derives a ``$1``
+    from a name nothing holds any more.
 
-    if name in CACHE:
-        del CACHE[name]
+    The release is guarded by identity, so it can never take a name away from a
+    component that is not the one being given up: the holder is the Component that
+    was passed, or -- for the string form -- whatever CACHE was holding under that
+    name. Holding that reference is also what makes the guard safe on a weak map,
+    since the entry cannot be collected between the read and the delete.
+
+    Residual, stated rather than solved: the string form cannot free a name whose
+    holder is not in CACHE, because from a bare string there is nothing to compare
+    against, and deleting unconditionally would steal a live component's name.
+    """
+    component = None if isinstance(name, str) else name
+    if component is not None:
+        name = component.name
+
+    cached = CACHE.pop(name, None)
 
     if name_counters[name] == 1:
         name_counters[name] = 0
+
+    giving_up = component if component is not None else cached
+    if giving_up is not None and _live_names.get(name) is giving_up:
+        del _live_names[name]
 
 
 def clear_cache() -> None:

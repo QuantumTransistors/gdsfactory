@@ -134,7 +134,8 @@ name_counters = Counter()
 
 # The names live Components currently hold, written where a name is handed out
 # (rename with cache=True, which is the path Component() itself takes) and dropped
-# where it is given up (rename away, clear_cache, or the Component being collected).
+# where it is given up (rename away, remove_from_cache, clear_cache, or the
+# Component being collected).
 # Weak, so a name is free again as soon as nothing holds the Component.
 #
 # clear_cache() clearing this is load-bearing and was measured: removing that one
@@ -191,8 +192,8 @@ def _round_floats_for_report(value):
     `Component.info` records raw arguments, but the cell CACHE is keyed on settings rounded to
     DEFAULT_SERIALIZATION_MAX_DIGITS -- so two calls differing below that threshold share one
     cell, and whichever built first decides the recorded value. That made `to_dict()` a function
-    of build order (qt01_pic_lfs GH #71): asking for `straight(length=3.0)` could report
-    3.000000000000014.
+    of build order (reported by a private consumer): asking for `straight(length=3.0)`
+    could report 3.000000000000014.
 
     Reporting at the same precision the cache identifies cells at makes the output deterministic.
     5e-7 um is three orders of magnitude below the 1 nm database grid, so nothing here is
@@ -461,9 +462,12 @@ class Component(_GeometryHelper):
             if CACHE.get(old_name) is self:
                 remove_from_cache(old_name)
             if _live_names.get(old_name) is self:
-                # It is leaving, so it no longer holds the name. Never touch
-                # name_counters here: that is the derivation index, and rewinding
-                # it would re-mint a $k somebody else still holds.
+                # It is leaving, so it no longer holds the name. Stays even though
+                # remove_from_cache now frees the name too: that call only happens
+                # on the branch above, and a component renaming away from a name it
+                # holds without being cached under it reaches this line and nothing
+                # else. Never touch name_counters here: that is the derivation
+                # index, and rewinding it would re-mint a $k somebody else holds.
                 del _live_names[old_name]
 
             if cache is True:
