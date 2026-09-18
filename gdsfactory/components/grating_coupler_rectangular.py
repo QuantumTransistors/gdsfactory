@@ -26,7 +26,7 @@ def grating_coupler_rectangular(
     layer_slab: LayerSpec | None = None,
     layer_grating: LayerSpec | None = None,
     fiber_angle: float | None = None,
-    slab_xmin: float = -1.0,
+    slab_xmin: float | None = -1.0,
     slab_offset: float = 1.0,
     cross_section: CrossSectionSpec = "xs_sc",
     **kwargs,
@@ -49,7 +49,7 @@ def grating_coupler_rectangular(
         layer_slab: layer that protects the slab under the grating.
         layer_grating: optional layer for the grating. Defaults to the cross_section main layer.
         fiber_angle: in degrees.
-        slab_xmin: where 0 is at the start of the taper.
+        slab_xmin: where 0 is at the end of the taper.
         slab_offset: from edge of grating to edge of the slab.
         cross_section: for input waveguide port.
         kwargs: cross_section settings.
@@ -108,7 +108,10 @@ def grating_coupler_rectangular(
         c.info["fiber_angle"] = fiber_angle
     c.info["polarization"] = polarization
     c.info["wavelength"] = wavelength
-    slab_xmin = length_taper
+    if slab_xmin is None:
+        _slab_xmin = length_taper
+    else:
+        _slab_xmin = length_taper + slab_xmin
 
     for section in xs.sections[1:]:
         slab_xsize = cgrating.xmax + section.width / 2
@@ -116,10 +119,10 @@ def grating_coupler_rectangular(
         yslab = slab_ysize / 2
         c.add_polygon(
             [
-                (slab_xmin, yslab),
+                (length_taper, yslab),
                 (slab_xsize, yslab),
                 (slab_xsize, -yslab),
-                (slab_xmin, -yslab),
+                (length_taper, -yslab),
             ],
             layer=section.layer,
         )
@@ -130,10 +133,10 @@ def grating_coupler_rectangular(
         yslab = slab_ysize / 2
         c.add_polygon(
             [
-                (slab_xmin, yslab),
+                (_slab_xmin, yslab),
                 (slab_xsize, yslab),
                 (slab_xsize, -yslab),
-                (slab_xmin, -yslab),
+                (_slab_xmin, -yslab),
             ],
             layer_slab,
         )
