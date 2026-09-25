@@ -237,6 +237,9 @@ class Settings(BaseSettings):
         on_width_missmatch: On width mismatch error type.
         on_layer_missmatch: On layer mismatch error type.
         on_type_missmatch: On type mismatch error type.
+        on_duplicate_cell_name: How to report a new Component renaming itself
+            because the name the counter would have handed out is already taken.
+            The rename always happens; this only controls the report.
         default_show_suffix: Default show suffix.
         raise_error_on_mutation: Raise error on mutation.
         logger: Loguru logger.
@@ -269,6 +272,12 @@ class Settings(BaseSettings):
     )
     on_type_missmatch: Literal["warn", "error", "ignore"] = Field(
         default="error", description="When connecting ports with different types."
+    )
+    on_duplicate_cell_name: Literal["warn", "error", "ignore"] = Field(
+        default="warn",
+        description="How to report a new Component renaming itself to a $k suffix "
+        "because the name the counter would have handed out is already taken. The "
+        "rename always happens; this only controls whether it is reported.",
     )
     default_show_suffix: Literal[".oas", ".gds"] = ".gds"
     raise_error_on_mutation: bool = True

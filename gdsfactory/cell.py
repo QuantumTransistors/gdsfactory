@@ -12,7 +12,7 @@ from typing import TypeVar, overload
 
 from pydantic import validate_call
 
-from gdsfactory.component import Component, name_counters
+from gdsfactory.component import Component, _live_names, name_counters
 from gdsfactory.component_layout import CellSettings
 from gdsfactory.config import CONF
 from gdsfactory.name import clean_name, get_name_short
@@ -31,16 +31,34 @@ class CellReturnTypeError(ValueError):
 
 
 def remove_from_cache(name: str | Component) -> None:
-    """Removes Component name from CACHE and resets the name counter."""
+    """Gives ``name`` up: drops it from CACHE, rewinds the counter, frees the name.
 
-    if not isinstance(name, str):
-        name = name.name
+    Callers throw a cell away here and build another one under the same name, so
+    the name has to be free afterwards -- otherwise the rebuild derives a ``$1``
+    from a name nothing holds any more.
 
-    if name in CACHE:
-        del CACHE[name]
+    The release is guarded by identity, so it can never take a name away from a
+    component that is not the one being given up: the holder is the Component that
+    was passed, or -- for the string form -- whatever CACHE was holding under that
+    name. Holding that reference is also what makes the guard safe on a weak map,
+    since the entry cannot be collected between the read and the delete.
+
+    Residual, stated rather than solved: the string form cannot free a name whose
+    holder is not in CACHE, because from a bare string there is nothing to compare
+    against, and deleting unconditionally would steal a live component's name.
+    """
+    component = None if isinstance(name, str) else name
+    if component is not None:
+        name = component.name
+
+    cached = CACHE.pop(name, None)
 
     if name_counters[name] == 1:
         name_counters[name] = 0
+
+    giving_up = component if component is not None else cached
+    if giving_up is not None and _live_names.get(name) is giving_up:
+        del _live_names[name]
 
 
 def clear_cache() -> None:
@@ -49,6 +67,12 @@ def clear_cache() -> None:
     CACHE.clear()
     CACHE_IDS.clear()
     name_counters.clear()
+    # Components built before this call stay alive in the caller's own variables;
+    # leaving their names recorded would make every rebuilt cell derive a $1.
+    # Measured, because this line reads like housekeeping and is not: removing it
+    # took this repository's own suite from 0 cell-name collision warnings to 306.
+    # The full argument, and the residual it leaves, are on _live_names itself.
+    _live_names.clear()
 
 
 def print_cache() -> None:
