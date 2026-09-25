@@ -65,7 +65,7 @@ def snap_to_grid(
 
     if isinstance(x, tuple):
         return tuple(y)
-    elif isinstance(x, int | float | str | np.float_):
+    elif isinstance(x, int | float | str | np.float64):
         return float(y)
     return y
 
