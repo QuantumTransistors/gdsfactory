@@ -2850,7 +2850,8 @@ def _line_distances(points, start, end):
         return np.linalg.norm(points - start, axis=1)
 
     vec = end - start
-    cross = np.cross(vec, start - points)
+    d = start - points
+    cross = vec[0] * d[:, 1] - vec[1] * d[:, 0]
     return np.divide(abs(cross), np.linalg.norm(vec))
 
 
